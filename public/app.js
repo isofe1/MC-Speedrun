@@ -396,3 +396,6 @@ window.onload = () => {
     updateTabUI();
     fetchServerData();
 };
+
+// Auto-refresh every 60 seconds (1 minute)
+setInterval(fetchServerData, 60000);
