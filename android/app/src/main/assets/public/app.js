@@ -3,7 +3,7 @@ let serverData = { leaderboard: [], queue: [] };
 let activeTab = 'leaderboard'; // 'leaderboard' or 'queue'
 let currentPage = 1;
 const runsPerPage = 100;
-let dateSortState = 0; 
+let dateSortState = 0;
 
 // Initialize
 
@@ -46,7 +46,7 @@ async function fetchServerData() {
         let lbUrl = `https://www.speedrun.com/api/v1/leaderboards/${GAME_ID}/category/${CAT_ID}?top=1000&embed=players`;
         if (seedVarId && seedValId) lbUrl += `&var-${seedVarId}=${seedValId}`;
         if (verSubVarId && verSubValId) lbUrl += `&var-${verSubVarId}=${verSubValId}`;
-        
+
         const queueOffsets = [0, 200, 400, 600, 800];
         const queuePromises = queueOffsets.map(offset =>
             fetchFromSrc(`https://www.speedrun.com/api/v1/runs?game=${GAME_ID}&category=${CAT_ID}&status=new&orderby=submitted&direction=desc&embed=players&max=200&offset=${offset}`)
@@ -133,7 +133,7 @@ async function fetchServerData() {
 
         let deduplicatedLeaderboard = [];
         let seenPlayers = new Set();
-        
+
         for (let run of allCombined) {
             if (!seenPlayers.has(run.playerKey)) {
                 deduplicatedLeaderboard.push(run);
@@ -199,8 +199,8 @@ window.switchTab = function(tab) {
     if (activeTab === tab) return;
     activeTab = tab;
     currentPage = 1;
-    dateSortState = 0; 
-    
+    dateSortState = 0;
+
     updateTabUI();
     updateURL(activeTab, currentPage);
     renderTab();
@@ -224,10 +224,10 @@ function gradient(start, end, len) {
 // --- NEW: formatPlayer incorporates the CSS Tooltip ---
 function formatPlayer(user, runStatus) {
     if (!user) return "?";
-    let flagHtml = '<span class="player-flag-empty"></span>'; 
+    let flagHtml = '<span class="player-flag-empty"></span>';
     let nameStr = user.names?.international || user.name || "?";
     let pid = user.id || user.name;
-    
+
     let rankBadge = "";
     if (runStatus === 'Pending' && serverData.officialRanks && serverData.officialRanks[pid]) {
         rankBadge = `<span class="rank-badge tooltip">#${serverData.officialRanks[pid]}<span class="tooltiptext">Official Verified Rank</span></span>`;
@@ -255,7 +255,7 @@ function formatPlayer(user, runStatus) {
             display = `<span style="color:${style.color.dark}">${escape(nameStr)}</span>`;
         }
         return `<span class="player-wrapper">${flagHtml}<b>${display}</b>${rankBadge}</span>`;
-    } 
+    }
     return `<span class="player-wrapper">${flagHtml}<span>${display}</span>${rankBadge}</span>`;
 }
 
@@ -269,7 +269,7 @@ function str_time(time) {
 
 function timeAgo(dateString) {
     if (!dateString || dateString === "Unknown" || dateString === "1970-01-01") return "Unknown date";
-    
+
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
@@ -290,7 +290,7 @@ function timeAgo(dateString) {
 window.toggleDateSort = function() {
     if (activeTab !== 'queue') return;
     dateSortState = (dateSortState + 1) % 3;
-    
+
     if (dateSortState === 0) serverData.queue.sort((a, b) => a.time - b.time);
     else if (dateSortState === 1) serverData.queue.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     else serverData.queue.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -306,7 +306,7 @@ function renderTab() {
     document.getElementById('run-count').innerText = `${list.length} ${isQueue ? 'Total Runs' : 'Unique Runners'}`;
     document.getElementById('avg-time').innerText = isQueue ? 'Pending Verification' : `${serverData.queue.length} pending verification`;
 
-    let dateHeader = isQueue 
+    let dateHeader = isQueue
         ? `<th class="sortable-th" onclick="toggleDateSort()" title="Click to sort">Date Submitted <span id="date-sort-arrow">${dateSortState === 1 ? '▼' : dateSortState === 2 ? '▲' : ''}</span></th>`
         : `<th>Date</th>`;
 
@@ -330,7 +330,7 @@ function renderTab() {
         pageRuns.forEach((run, index) => {
             let rank = start + index + 1;
             let rankDisplay = `#${rank}`;
-            
+
             if (!isQueue) {
                 if (rank === 1) rankDisplay = `<img src="1st.png" class="trophy-icon">`;
                 if (rank === 2) rankDisplay = `<img src="2nd.png" class="trophy-icon">`;
