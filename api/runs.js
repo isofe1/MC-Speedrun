@@ -46,12 +46,10 @@ export default async function handler(req, res) {
         if (verSubVarId && verSubValId) lbUrl += `&var-${verSubVarId}=${verSubValId}`;
         
         // --- FASTER FETCHING START ---
-        // Instead of a slow while-loop, we fetch the Leaderboard AND up to 1000 Queue runs 
-        // at the exact same time to bypass Vercel's 10-second timeout limit.
         const queueOffsets = [0, 200, 400, 600, 800]; 
         const queuePromises = queueOffsets.map(offset => 
             fetchFromSrc(`runs?game=${GAME_ID}&category=${CAT_ID}&status=new&orderby=submitted&direction=desc&embed=players&max=200&offset=${offset}`)
-            .catch(() => ({ data: [] })) // If one page fails, don't crash everything
+            .catch(() => ({ data: [] })) 
         );
 
         // Run all API requests concurrently
@@ -62,6 +60,19 @@ export default async function handler(req, res) {
         // --- FASTER FETCHING END ---
 
         const lbPlayers = lbData.data.players.data;
+
+        // --- NEW: Safely map Official Ranks ---
+        let officialRanks = {};
+        if (lbData && lbData.data && lbData.data.runs) {
+            lbData.data.runs.forEach(item => {
+                if (item.run && item.run.players) {
+                    item.run.players.forEach(p => {
+                        if (p.id) officialRanks[p.id] = item.rank;
+                    });
+                }
+            });
+        }
+
         let allCombined = [];
 
         // Helper function to check 1.16 - 1.19
@@ -136,12 +147,13 @@ export default async function handler(req, res) {
         }
 
         let pureQueue = allCombined.filter(r => r.status === 'Pending');
-        pureQueue.sort((a, b) => a.time - b.time); // Default Queue sort by time
+        pureQueue.sort((a, b) => a.time - b.time); 
 
         // 6. Save to Cache and Send
         cachedData = {
             leaderboard: deduplicatedLeaderboard,
             queue: pureQueue,
+            officialRanks: officialRanks, // --- NEW: Include ranks in output ---
             updated: new Date().toISOString()
         };
         lastFetchTime = Date.now();
