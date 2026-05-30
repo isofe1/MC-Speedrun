@@ -175,6 +175,8 @@ a:hover { text-decoration: underline; }
   position: relative;
   cursor: help;
   display: inline-block;
+  user-select: none; 
+  -webkit-user-select: none;
 }
 
 .tooltip .tooltiptext {
