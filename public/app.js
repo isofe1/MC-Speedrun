@@ -69,17 +69,16 @@ function gradient(start, end, len) {
     return colors;
 }
 
-// Updated: formatPlayer now accepts showRank flag
-function formatPlayer(user, showRank = false) {
+function formatPlayer(user, runStatus) {
     if (!user) return "?";
     let flagHtml = '<span class="player-flag-empty"></span>'; 
     let nameStr = user.names?.international || user.name || "?";
     let pid = user.id || user.name;
-    let rankBadge = "";
-
-    // Add rank badge if in queue and player is ranked
-    if (showRank && playerRankMap[pid]) {
-        rankBadge = `<span class="rank-badge">#${playerRankMap[pid]}</span>`;
+    
+    // Only show official rank badge if the run is UNVERIFIED (Pending)
+    let officialRankBadge = "";
+    if (runStatus === 'Pending' && serverData.officialRanks && serverData.officialRanks[pid]) {
+        officialRankBadge = `<span class="rank-badge">#${serverData.officialRanks[pid]}</span>`;
     }
 
     if (user.location?.country?.code) {
@@ -93,6 +92,20 @@ function formatPlayer(user, showRank = false) {
             flagHtml = `<img src="https://www.speedrun.com/images/flags/${cc}.png" alt="${cc}" class="player-flag">`;
         }
     }
+
+    let display = escape(nameStr);
+    if (!("rel" in user) || user.rel == "user") {
+        let style = user["name-style"];
+        if (style?.style == "gradient") {
+            let gr = gradient(style["color-from"].dark.slice(1), style["color-to"].dark.slice(1), nameStr.length);
+            display = gr.map((c, i) => `<span style="color:#${c}">${escape(nameStr[i])}</span>`).join("");
+        } else if (style?.style == "solid") {
+            display = `<span style="color:${style.color.dark}">${escape(nameStr)}</span>`;
+        }
+        return `<span class="player-wrapper">${flagHtml}<b>${display}</b>${officialRankBadge}</span>`;
+    } 
+    return `<span class="player-wrapper">${flagHtml}<span>${display}</span>${officialRankBadge}</span>`;
+}
 
     let display = escape(nameStr);
     if (!("rel" in user) || user.rel == "user") {
@@ -180,7 +193,7 @@ function renderTab() {
             }
             
             // Pass 'isQueue' so the formatPlayer function knows when to show the rank badge
-            let p_html = run.players.map(p => formatPlayer(p, true)).join(", ");
+            let p_html = run.players.map(p => formatPlayer(p, run.status)).join(", ");
             let stat = run.status === 'Verified' ? `<span class="status-badge status-verified">Verified</span>` : `<span class="status-badge status-pending">Unverified</span>`;
             tableHTML += `<tr>
                 <td style="color:var(--text-muted); font-weight:700; text-align:center;">${rankDisplay}</td>
