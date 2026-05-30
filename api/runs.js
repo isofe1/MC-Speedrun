@@ -19,7 +19,6 @@ export default async function handler(req, res) {
     // 1. Check Cache
     const now = Date.now();
     if (cachedData && (now - lastFetchTime < CACHE_DURATION_MS)) {
-        // Tell Vercel's CDN to also cache this response for 60 seconds
         res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
         return res.status(200).json(cachedData);
     }
@@ -46,25 +45,38 @@ export default async function handler(req, res) {
         if (seedVarId && seedValId) lbUrl += `&var-${seedVarId}=${seedValId}`;
         if (verSubVarId && verSubValId) lbUrl += `&var-${verSubVarId}=${verSubValId}`;
         
-        const lbData = await fetchFromSrc(lbUrl);
+        // --- FASTER FETCHING START ---
+        // Instead of a slow while-loop, we fetch the Leaderboard AND up to 1000 Queue runs 
+        // at the exact same time to bypass Vercel's 10-second timeout limit.
+        const queueOffsets = [0, 200, 400, 600, 800]; 
+        const queuePromises = queueOffsets.map(offset => 
+            fetchFromSrc(`runs?game=${GAME_ID}&category=${CAT_ID}&status=new&orderby=submitted&direction=desc&embed=players&max=200&offset=${offset}`)
+            .catch(() => ({ data: [] })) // If one page fails, don't crash everything
+        );
+
+        // Run all API requests concurrently
+        const [lbData, ...queueResults] = await Promise.all([
+            fetchFromSrc(lbUrl),
+            ...queuePromises
+        ]);
+        // --- FASTER FETCHING END ---
+
         const lbPlayers = lbData.data.players.data;
-        
         let allCombined = [];
+
+        // Helper function to check 1.16 - 1.19
+        const isTargetVersion = (verLbl) => {
+            if (!verLbl) return false;
+            let m = verLbl.match(/^1\.(\d+)/);
+            return (m && parseInt(m[1]) >= 16 && parseInt(m[1]) <= 19);
+        };
 
         // Process Leaderboard
         for (let item of lbData.data.runs) {
             let run = item.run;
-            let verVal = run.values[EXACT_VER_VAR_ID];
-            let verLbl = var_map[verVal];
-            
-            // Check if version is 1.16 - 1.19
-            let isTargetVersion = false;
-            if (verLbl) {
-                let m = verLbl.match(/^1\.(\d+)/);
-                if (m && parseInt(m[1]) >= 16 && parseInt(m[1]) <= 19) isTargetVersion = true;
-            }
+            let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
 
-            if (isTargetVersion && run.values[seedVarId] === seedValId) {
+            if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId) {
                 let resolvedPlayers = run.players.map(p => {
                     if (p.rel === 'user') return lbPlayers.find(u => u.id === p.id) || p;
                     return p;
@@ -84,32 +96,16 @@ export default async function handler(req, res) {
             }
         }
 
-        // 4. Fetch Queue (Pending)
-        let offset = 0;
-        let hasMore = true;
+        // Process Queue
         let allQueueRuns = [];
-
-        while (hasMore) {
-            const qData = await fetchFromSrc(`runs?game=${GAME_ID}&category=${CAT_ID}&status=new&orderby=submitted&direction=desc&embed=players&max=200&offset=${offset}`);
-            allQueueRuns.push(...qData.data);
-            if (qData.data.length < 200 || allQueueRuns.length >= 2000) {
-                hasMore = false;
-            } else {
-                offset += 200;
-            }
+        for (let res of queueResults) {
+            if (res && res.data) allQueueRuns.push(...res.data);
         }
 
         for (let run of allQueueRuns) {
-            let verVal = run.values[EXACT_VER_VAR_ID];
-            let verLbl = var_map[verVal];
-            
-            let isTargetVersion = false;
-            if (verLbl) {
-                let m = verLbl.match(/^1\.(\d+)/);
-                if (m && parseInt(m[1]) >= 16 && parseInt(m[1]) <= 19) isTargetVersion = true;
-            }
+            let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
 
-            if (isTargetVersion && run.values[seedVarId] === seedValId) {
+            if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId) {
                 let resolvedPlayers = (run.players && run.players.data) ? run.players.data : run.players;
                 let playerKey = resolvedPlayers.map(p => p.id || p.name).sort().join("|");
                 
@@ -156,4 +152,4 @@ export default async function handler(req, res) {
         console.error("Backend Error:", error);
         return res.status(500).json({ error: 'Failed to fetch data' });
     }
-    }
+}
