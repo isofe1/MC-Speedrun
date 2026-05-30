@@ -26,20 +26,51 @@ async function fetchServerData() {
 // Auto-refresh every 60 seconds (1 minute)
 setInterval(fetchServerData, 60000);
 
+// URL State Management
+function updateURL(tab, page) {
+    const url = new URL(window.location);
+    url.searchParams.set('tab', tab);
+    if (page > 1) {
+        url.searchParams.set('page', page);
+    } else {
+        url.searchParams.delete('page');
+    }
+    window.history.pushState({ tab, page }, '', url);
+}
+
+window.addEventListener('popstate', (event) => {
+    if (event.state) {
+        activeTab = event.state.tab || 'leaderboard';
+        currentPage = event.state.page || 1;
+    } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        activeTab = urlParams.get('tab') === 'queue' ? 'queue' : 'leaderboard';
+        currentPage = parseInt(urlParams.get('page')) || 1;
+    }
+    dateSortState = 0;
+
+    updateTabUI();
+    renderTab();
+});
+
+function updateTabUI() {
+    document.getElementById('tab-leaderboard').classList.toggle('active', activeTab === 'leaderboard');
+    document.getElementById('tab-queue').classList.toggle('active', activeTab === 'queue');
+
+    document.getElementById('page-desc').innerText = activeTab === 'leaderboard'
+        ? "Combined Leaderboard (Verified & Pending)"
+        : "Pending Verification Queue";
+}
+
 // Tab Switching
 window.switchTab = function(tab) {
+    if (activeTab === tab) return;
     activeTab = tab;
     currentPage = 1;
     dateSortState = 0; 
     
-    document.getElementById('tab-leaderboard').classList.toggle('active', tab === 'leaderboard');
-    document.getElementById('tab-queue').classList.toggle('active', tab === 'queue');
-    
-    // Update headers text
-    document.getElementById('page-desc').innerText = tab === 'leaderboard' 
-        ? "Combined Leaderboard (Verified & Pending)" 
-        : "Pending Verification Queue";
-        
+    updateTabUI();
+    updateURL(activeTab, currentPage);
     renderTab();
 }
 
@@ -214,9 +245,22 @@ function renderPagination(totalItems) {
 }
 
 window.changePage = function(page) {
+    if (currentPage === page) return;
     currentPage = page;
+    updateURL(activeTab, currentPage);
     renderTab();
     document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-window.onload = fetchServerData;
+window.onload = () => {
+    // Read initial state from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    activeTab = urlParams.get('tab') === 'queue' ? 'queue' : 'leaderboard';
+    currentPage = parseInt(urlParams.get('page')) || 1;
+
+    // Set initial history state to allow popstate to work correctly returning to the very first load
+    window.history.replaceState({ tab: activeTab, page: currentPage }, '', window.location.href);
+
+    updateTabUI();
+    fetchServerData();
+};
