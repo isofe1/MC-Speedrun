@@ -67,7 +67,8 @@ export default async function handler(req, res) {
             lbData.data.runs.forEach(item => {
                 if (item.run && item.run.players) {
                     item.run.players.forEach(p => {
-                        if (p.id) officialRanks[p.id] = item.rank;
+                        // THE FIX: The Speedrun.com API uses 'place', not 'rank'
+                        if (p.id) officialRanks[p.id] = item.place;
                     });
                 }
             });
@@ -153,7 +154,7 @@ export default async function handler(req, res) {
         cachedData = {
             leaderboard: deduplicatedLeaderboard,
             queue: pureQueue,
-            officialRanks: officialRanks, // --- NEW: Include ranks in output ---
+            officialRanks: officialRanks, 
             updated: new Date().toISOString()
         };
         lastFetchTime = Date.now();
