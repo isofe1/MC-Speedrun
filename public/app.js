@@ -90,6 +90,42 @@ function str_time(time) {
     return res;
 }
 
+// "Time Ago" Logic
+function timeAgo(dateString) {
+    if (!dateString || dateString === "Unknown" || dateString === "1970-01-01") return "Unknown date";
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+
+    let interval = seconds / 31536000;
+    if (interval > 1) {
+        const val = Math.floor(interval);
+        return val + (val === 1 ? " year ago" : " years ago");
+    }
+    interval = seconds / 2592000;
+    if (interval > 1) {
+        const val = Math.floor(interval);
+        return val + (val === 1 ? " month ago" : " months ago");
+    }
+    interval = seconds / 86400;
+    if (interval > 1) {
+        const val = Math.floor(interval);
+        return val + (val === 1 ? " day ago" : " days ago");
+    }
+    interval = seconds / 3600;
+    if (interval > 1) {
+        const val = Math.floor(interval);
+        return val + (val === 1 ? " hour ago" : " hours ago");
+    }
+    interval = seconds / 60;
+    if (interval > 1) {
+        const val = Math.floor(interval);
+        return val + (val === 1 ? " minute ago" : " minutes ago");
+    }
+    return "Just now";
+}
+
 // Queue Date Sorting Logic
 window.toggleDateSort = function() {
     if (activeTab !== 'queue') return;
@@ -154,7 +190,7 @@ function renderTab() {
                 <td style="color:var(--accent); font-weight:600;">${str_time(run.time)}</td>
                 ${isQueue ? '' : `<td>${stat}</td>`}
                 <td><span style="background:#2a2a2a; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">${run.version}</span></td>
-                <td>${run.date}</td>
+                <td><span title="${run.date}" style="cursor: help; border-bottom: 1px dotted var(--text-muted);">${timeAgo(run.timestamp || run.date)}</span></td>
                 <td><a href="${run.weblink}" target="_blank" class="external">Review</a></td>
             </tr>`;
         });
