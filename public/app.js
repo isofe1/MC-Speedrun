@@ -8,10 +8,14 @@ let dateSortState = 0; // 0: Time, 1: Newest, 2: Oldest (For Queue Only)
 // Initialize
 async function fetchServerData() {
     try {
-        // Calls your new Vercel Backend
         const res = await fetch('/api/runs'); 
         if (!res.ok) throw new Error("Server error");
         serverData = await res.json();
+        
+        // Show update time
+        const date = new Date(serverData.updated);
+        document.getElementById('last-updated').innerText = `Last updated: ${date.toLocaleTimeString()}`;
+        
         renderTab();
     } catch (err) {
         console.error(err);
