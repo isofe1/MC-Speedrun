@@ -60,20 +60,7 @@ export default async function handler(req, res) {
         // --- FASTER FETCHING END ---
 
         const lbPlayers = lbData.data.players.data;
-
-        // --- NEW: Safely map Official Ranks ---
         let officialRanks = {};
-        if (lbData && lbData.data && lbData.data.runs) {
-            lbData.data.runs.forEach(item => {
-                if (item.run && item.run.players) {
-                    item.run.players.forEach(p => {
-                        // THE FIX: The Speedrun.com API uses 'place', not 'rank'
-                        if (p.id) officialRanks[p.id] = item.place;
-                    });
-                }
-            });
-        }
-
         let allCombined = [];
 
         // Helper function to check 1.16 - 1.19
@@ -84,27 +71,42 @@ export default async function handler(req, res) {
         };
 
         // Process Leaderboard
-        for (let item of lbData.data.runs) {
-            let run = item.run;
-            let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
+        let officialRankCounter = 1;
+        if (lbData && lbData.data && lbData.data.runs) {
+            for (let item of lbData.data.runs) {
+                let run = item.run;
+                let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
 
-            if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId) {
-                let resolvedPlayers = run.players.map(p => {
-                    if (p.rel === 'user') return lbPlayers.find(u => u.id === p.id) || p;
-                    return p;
-                });
-                let playerKey = resolvedPlayers.map(p => p.id || p.name).sort().join("|");
+                // Only count the rank if it's a valid 1.16-1.19 Random Seed run
+                if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId) {
+                    
+                    // --- THE FIX: Assign exact rank manually based on valid runs ---
+                    if (run.players) {
+                        run.players.forEach(p => {
+                            if (p.id && !officialRanks[p.id]) {
+                                officialRanks[p.id] = officialRankCounter;
+                            }
+                        });
+                    }
+                    officialRankCounter++;
 
-                allCombined.push({
-                    time: run.times.primary_t,
-                    players: resolvedPlayers,
-                    playerKey: playerKey,
-                    version: verLbl,
-                    date: run.date || (run.submitted ? run.submitted.split("T")[0] : "Unknown"),
-                    timestamp: run.submitted || run.date || "1970-01-01",
-                    weblink: run.weblink.replace("http://", "https://"),
-                    status: 'Verified'
-                });
+                    let resolvedPlayers = run.players.map(p => {
+                        if (p.rel === 'user') return lbPlayers.find(u => u.id === p.id) || p;
+                        return p;
+                    });
+                    let playerKey = resolvedPlayers.map(p => p.id || p.name).sort().join("|");
+
+                    allCombined.push({
+                        time: run.times.primary_t,
+                        players: resolvedPlayers,
+                        playerKey: playerKey,
+                        version: verLbl,
+                        date: run.date || (run.submitted ? run.submitted.split("T")[0] : "Unknown"),
+                        timestamp: run.submitted || run.date || "1970-01-01",
+                        weblink: run.weblink.replace("http://", "https://"),
+                        status: 'Verified'
+                    });
+                }
             }
         }
 
