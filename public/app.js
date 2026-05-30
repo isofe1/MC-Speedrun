@@ -60,10 +60,18 @@ function gradient(start, end, len) {
     return colors;
 }
 
-function formatPlayer(user) {
+// --- NEW: formatPlayer now takes runStatus to know if the run is UNVERIFIED ---
+function formatPlayer(user, runStatus) {
     if (!user) return "?";
     let flagHtml = '<span class="player-flag-empty"></span>'; 
     let nameStr = user.names?.international || user.name || "?";
+    let pid = user.id || user.name;
+    
+    // --- NEW: Generate the rank badge HTML if applicable ---
+    let rankBadge = "";
+    if (runStatus === 'Pending' && serverData.officialRanks && serverData.officialRanks[pid]) {
+        rankBadge = `<span class="rank-badge" style="background:#2a2a2a; color:var(--text-muted); font-size:0.7rem; padding:1px 5px; border-radius:4px; margin-left:6px; border:1px solid #444; vertical-align:middle;">#${serverData.officialRanks[pid]}</span>`;
+    }
 
     if (user.location?.country?.code) {
         let cc = user.location.country.code.toLowerCase();
@@ -86,9 +94,9 @@ function formatPlayer(user) {
         } else if (style?.style == "solid") {
             display = `<span style="color:${style.color.dark}">${escape(nameStr)}</span>`;
         }
-        return `<span class="player-wrapper">${flagHtml}<b>${display}</b></span>`;
+        return `<span class="player-wrapper">${flagHtml}<b>${display}</b>${rankBadge}</span>`;
     } 
-    return `<span class="player-wrapper">${flagHtml}<span>${display}</span></span>`;
+    return `<span class="player-wrapper">${flagHtml}<span>${display}</span>${rankBadge}</span>`;
 }
 
 function str_time(time) {
@@ -161,8 +169,11 @@ function renderTab() {
                 if (rank === 2) rankDisplay = `<img src="2nd.png" class="trophy-icon">`;
                 if (rank === 3) rankDisplay = `<img src="3rd.png" class="trophy-icon">`;
             }
-            let p_html = run.players.map(p => formatPlayer(p)).join(", ");
+            
+            // --- NEW: Pass the status to formatPlayer ---
+            let p_html = run.players.map(p => formatPlayer(p, run.status)).join(", ");
             let stat = run.status === 'Verified' ? `<span class="status-badge status-verified">Verified</span>` : `<span class="status-badge status-pending">Unverified</span>`;
+            
             tableHTML += `<tr>
                 <td style="color:var(--text-muted); font-weight:700; text-align:center;">${rankDisplay}</td>
                 <td>${p_html}</td>
