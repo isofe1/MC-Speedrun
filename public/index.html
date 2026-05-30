@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MC Speedrun | Any% Glitchless 1.16-1.19</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00b070" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      MC Speedrun <span class="badge">1.16-1.19</span>
+    </div>
+    <div class="nav-links">
+      <button id="tab-leaderboard" class="tab-btn active" onclick="switchTab('leaderboard')">Leaderboard</button>
+      <button id="tab-queue" class="tab-btn" onclick="switchTab('queue')">Queue</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="header-info">
+      <div>
+        <h2 id="page-title">Any% Glitchless - Random Seed</h2>
+        <p id="page-desc">Verified Leaderboard + Unverified Queue (Fastest PB)</p>
+      </div>
+      <div style="text-align: right;">
+        <h2 id="run-count">0 Runs</h2>
+        <p id="avg-time">Fetching from server...</p>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr id="table-head">
+            </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="7" id="status-container">
+            <div class="spinner"></div><br>
+            <span id="loading-text">Waking up server and fetching data... (This is fast!)</span>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="pagination" class="pagination-container"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
