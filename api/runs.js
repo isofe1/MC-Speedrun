@@ -141,7 +141,8 @@ export default async function handler(req, res) {
         // 6. Save to Cache and Send
         cachedData = {
             leaderboard: deduplicatedLeaderboard,
-            queue: pureQueue
+            queue: pureQueue,
+            updated: new Date().toISOString()
         };
         lastFetchTime = Date.now();
 
