@@ -9,10 +9,18 @@ let cachedData = null;
 let lastFetchTime = 0;
 const CACHE_DURATION_MS = 60 * 1000; // 60 seconds
 
-async function fetchFromSrc(endpoint) {
-    const res = await fetch(HEADER + endpoint);
-    if (!res.ok) throw new Error(`Speedrun API returned ${res.status}`);
-    return res.json();
+async function fetchFromSrc(endpoint, retries = 2) {
+    for (let i = 0; i <= retries; i++) {
+        try {
+            const res = await fetch(HEADER + endpoint);
+            if (!res.ok) throw new Error(`Speedrun API returned ${res.status}`);
+            return await res.json();
+        } catch (error) {
+            if (i === retries) throw error;
+            console.warn(`Fetch failed for ${endpoint}, retrying in 1s... (${i + 1}/${retries})`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
 }
 
 export default async function handler(req, res) {
