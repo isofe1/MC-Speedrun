@@ -75,6 +75,24 @@ body {
   background-color: rgba(0, 176, 112, 0.1);
 }
 
+.disclaimer-banner {
+  background: #1a1a1a;
+  color: #888;
+  text-align: center;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  border-bottom: 1px solid #333;
+}
+
+.disclaimer-banner a {
+  color: #00b070; /* Your green accent color */
+  text-decoration: none;
+}
+
+.disclaimer-banner a:hover {
+  text-decoration: underline;
+}
+
 /* Container & Table */
 .container {
   max-width: 1200px;
