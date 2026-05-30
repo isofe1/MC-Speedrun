@@ -19,6 +19,10 @@ body {
   margin: 0;
   padding: 0;
   line-height: 1.5;
+  
+  /* Stops the random text selection and Google Search popups */
+  -webkit-user-select: none; 
+  user-select: none;         
 }
 
 /* Navbar */
