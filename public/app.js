@@ -180,7 +180,7 @@ function renderTab() {
             }
             
             // Pass 'isQueue' so the formatPlayer function knows when to show the rank badge
-            let p_html = run.players.map(p => formatPlayer(p, isQueue)).join(", ");
+            let p_html = run.players.map(p => formatPlayer(p, true)).join(", ");
             let stat = run.status === 'Verified' ? `<span class="status-badge status-verified">Verified</span>` : `<span class="status-badge status-pending">Unverified</span>`;
             tableHTML += `<tr>
                 <td style="color:var(--text-muted); font-weight:700; text-align:center;">${rankDisplay}</td>
