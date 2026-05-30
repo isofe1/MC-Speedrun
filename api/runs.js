@@ -6,16 +6,13 @@ const EXACT_VER_VAR_ID = "jlzkwql2";
 
 export default async function handler(req, res) {
     try {
-        console.log("DEBUG: Starting API fetch...");
-
         const fetchFromSrc = async (endpoint) => {
-            console.log(`DEBUG: Fetching ${endpoint}`);
-            const res = await fetch(HEADER + endpoint);
-            if (!res.ok) throw new Error(`SRC API returned ${res.status}`);
-            return res.json();
+            const response = await fetch(HEADER + endpoint);
+            if (!response.ok) throw new Error(`SRC API returned ${response.status}`);
+            return response.json();
         };
 
-        // 2. Resolve Variables
+        // 1. Resolve Variables
         const varData = await fetchFromSrc(`games/${GAME_ID}/variables`);
         let seedVarId, seedValId;
         for (let v of varData.data) {
@@ -25,24 +22,74 @@ export default async function handler(req, res) {
             }
         }
 
-        // 3. Fetch Data Concurrently
+        // 2. Fetch Leaderboard and Queue concurrently
         let lbUrl = `leaderboards/${GAME_ID}/category/${CAT_ID}?top=1000&embed=players&var-${seedVarId}=${seedValId}`;
-        const queueOffsets = [0, 200, 400]; // Reduced to 3 pages for testing
+        const queueOffsets = [0, 200, 400];
         
-        console.log("DEBUG: Executing all requests...");
-        const results = await Promise.all([
-            fetchFromSrc(lbUrl).catch(e => { console.error("DEBUG: LB Error", e); return { data: { runs: [] } }; }),
-            ...queueOffsets.map(off => fetchFromSrc(`runs?game=${GAME_ID}&category=${CAT_ID}&status=new&max=200&offset=${off}`).catch(e => { console.error("DEBUG: Queue Error", e); return { data: [] }; }))
+        const [lbData, ...queueResults] = await Promise.all([
+            fetchFromSrc(lbUrl).catch(() => ({ data: { runs: [], players: { data: [] } } })),
+            ...queueOffsets.map(off => fetchFromSrc(`runs?game=${GAME_ID}&category=${CAT_ID}&status=new&max=200&offset=${off}`).catch(() => ({ data: [] })))
         ]);
 
-        console.log("DEBUG: Fetched successfully. Processing...");
-        // ... (rest of your logic to combine data)
+        // 3. Map Official Ranks (Safely)
+        let officialRanks = {};
+        if (lbData?.data?.runs) {
+            lbData.data.runs.forEach(item => {
+                const rank = item.rank;
+                if (item.run?.players) {
+                    item.run.players.forEach(p => { if(p.id) officialRanks[p.id] = rank; });
+                }
+            });
+        }
+
+        // 4. Combine Data
+        let allCombined = [];
+        const isTargetVersion = (verLbl) => verLbl && verLbl.match(/^1\.(1[6-9])/);
         
-        // Return success
-        return res.status(200).json({ leaderboard: [], queue: [], updated: new Date().toISOString() });
+        // Add Leaderboard runs
+        if (lbData?.data?.runs) {
+            lbData.data.runs.forEach(item => {
+                let run = item.run;
+                allCombined.push({
+                    time: run.times.primary_t,
+                    players: run.players,
+                    version: "1.16-1.19", // Simplified for robustness
+                    date: run.date || "Unknown",
+                    timestamp: run.submitted || run.date || "1970-01-01",
+                    weblink: run.weblink,
+                    status: 'Verified'
+                });
+            });
+        }
+
+        // Add Queue runs
+        queueResults.forEach(res => {
+            if (res?.data) {
+                res.data.forEach(run => {
+                    allCombined.push({
+                        time: run.times.primary_t,
+                        players: run.players.data || run.players,
+                        version: "1.16-1.19",
+                        date: run.date || "Unknown",
+                        timestamp: run.submitted || run.date || "1970-01-01",
+                        weblink: run.weblink,
+                        status: 'Pending'
+                    });
+                });
+            }
+        });
+
+        allCombined.sort((a, b) => a.time - b.time);
+
+        return res.status(200).json({ 
+            leaderboard: allCombined.filter(r => r.status === 'Verified'), 
+            queue: allCombined.filter(r => r.status === 'Pending'),
+            officialRanks: officialRanks,
+            updated: new Date().toISOString()
+        });
 
     } catch (error) {
-        console.error("DEBUG: CRITICAL ERROR in api/runs.js", error);
-        return res.status(500).json({ error: error.message });
+        console.error("Backend Error:", error);
+        return res.status(500).json({ error: 'Failed to fetch data' });
     }
 }
