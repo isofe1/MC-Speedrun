@@ -30,7 +30,7 @@ window.switchTab = function(tab) {
     
     // Update headers text
     document.getElementById('page-desc').innerText = tab === 'leaderboard' 
-        ? "Verified Leaderboard + Unverified Queue (Fastest PB)" 
+        ? "Combined Leaderboard (Verified & Pending)" 
         : "Pending Verification Queue";
         
     renderTab();
