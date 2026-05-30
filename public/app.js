@@ -156,7 +156,14 @@ async function fetchServerData() {
 
     } catch (error) {
         console.error("Error fetching data:", error);
-        document.getElementById("status-container").innerHTML = `<span style="color:var(--error);">Failed to load data. Please refresh.</span>`;
+
+let el = document.getElementById("status-container");
+if (el) {
+    el.innerHTML = `<span style="color:var(--error);">Failed to load data. Please refresh.</span>`;
+} else {
+    document.getElementById("table-body").innerHTML = `<tr><td colspan="7" style="text-align:center; color:#E44141; padding: 40px;"><b>Failed to fetch data from backend.</b></td></tr>`;
+}
+
     }
 }
 function updateURL(tab, page) {
@@ -175,9 +182,8 @@ window.addEventListener('popstate', (event) => {
         activeTab = event.state.tab || 'leaderboard';
         currentPage = event.state.page || 1;
     } else {
-        const urlParams = new URLSearchParams(window.location.search);
-        activeTab = urlParams.get('tab') === 'queue' ? 'queue' : 'leaderboard';
-        currentPage = parseInt(urlParams.get('page')) || 1;
+        activeTab = 'leaderboard';
+        currentPage = 1;
     }
     dateSortState = 0;
 
@@ -381,8 +387,18 @@ window.changePage = function(page) {
     currentPage = page;
     updateURL(activeTab, currentPage);
     renderTab();
-    document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// In Capacitor, the Android Back button natively triggers popstate when there is history
+window.addEventListener('popstate', (event) => {
+    if (event.state) {
+        activeTab = event.state.tab || 'leaderboard';
+        currentPage = event.state.page || 1;
+        updateTabUI();
+        renderTab();
+    }
+});
 
 window.onload = () => {
     // Read initial state from URL
@@ -402,22 +418,17 @@ setInterval(fetchServerData, 60000);
 
 
 
-document.addEventListener('deviceready', () => {
-    document.addEventListener("resume", () => {
-        // When app comes back to foreground, immediately refresh data
-        fetchServerData();
-    }, false);
 
-    document.addEventListener("backbutton", (e) => {
-        if (currentPage > 1) {
-            changePage(1);
-        } else if (activeTab === 'queue') {
-            switchTab('leaderboard');
-        } else {
-            // Let the app close
-            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
-                window.Capacitor.Plugins.App.exitApp();
-            }
-        }
-    }, false);
-}, false);
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        fetchServerData();
+    }
+});
+
+
+// Register Capacitor App Back Button if available (Capacitor 3+)
+if (window.Capacitor) {
+    // The App plugin is automatically available in the webview context on Capacitor when installed.
+    // However, the best cross-compatibility way without a bundler is to rely on history API.
+}

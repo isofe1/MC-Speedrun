@@ -275,3 +275,9 @@ a:hover { text-decoration: underline; }
   visibility: visible;
   opacity: 1;
 }
+
+/* App-like behavior for Android */
+body {
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+}
