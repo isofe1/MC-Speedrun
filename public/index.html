@@ -24,9 +24,31 @@
     </div>
   </nav>
 
-  <div class="disclaimer-banner">
-  Unofficial Speedrun.com tool • Data provided by <a href="https://speedrun.com" target="_blank">speedrun.com API</a>
-</div>
+    <header class="transparency-banner-container" role="banner" aria-label="Data Integrity and Transparency Status">
+    <div class="transparency-banner-content">
+        <div class="banner-badge-group">
+            <span class="badge-pill badge-warning" aria-label="Disclaimer">Unofficial Community Portal</span>
+            <span class="badge-pill badge-success" id="upstream-api-status" aria-label="API Status">API Operational</span>
+        </div>
+        <p class="banner-legal-copy">
+            This site is an independent tracking dashboard powered by the public Speedrun.com REST API.
+            Run data, verified states, and timing matrices are synced to ensure high-speed
+            browsing while staying compliant with the official 120 requests/minute rate limits.
+        </p>
+        <div class="banner-sync-telemetry">
+            <span class="telemetry-item">
+                <strong>Data Freshness:</strong> <span id="cache-latency-timestamp">Fetching...</span>
+            </span>
+            <span class="telemetry-separator" aria-hidden="true">|</span>
+            <span class="telemetry-item">
+                <strong>Official Rules:</strong>
+                <a href="https://www.speedrun.com/mc" target="_blank" rel="noopener noreferrer" class="banner-hyperlink">
+                    Minecraft Leaderboard Rules
+                </a>
+            </span>
+        </div>
+    </div>
+  </header>
   
   <div class="container">
     <div class="header-info">

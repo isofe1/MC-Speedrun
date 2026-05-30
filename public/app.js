@@ -16,10 +16,34 @@ async function fetchServerData() {
         const date = new Date(serverData.updated);
         document.getElementById('last-updated').innerText = `Last updated: ${date.toLocaleTimeString()}`;
         
+        // Update transparency banner
+        const now = new Date();
+        const diffSeconds = Math.floor((now - date) / 1000);
+        let timeStr = diffSeconds < 60 ? `${diffSeconds}s ago` : `${Math.floor(diffSeconds/60)}m ago`;
+        if (diffSeconds < 5) timeStr = 'Just now';
+
+        const latencyEl = document.getElementById('cache-latency-timestamp');
+        if (latencyEl) {
+            latencyEl.innerText = `Synchronized ${timeStr}`;
+        }
+        const apiStatusEl = document.getElementById('upstream-api-status');
+        if (apiStatusEl) {
+            apiStatusEl.innerText = "API Operational";
+            apiStatusEl.className = "badge-pill badge-success";
+        }
+
         renderTab();
     } catch (err) {
         console.error(err);
         document.getElementById('table-body').innerHTML = `<tr><td colspan="7" style="text-align:center; color:#E44141; padding: 40px;"><b>Failed to fetch data from backend.</b></td></tr>`;
+
+        const apiStatusEl = document.getElementById('upstream-api-status');
+        if (apiStatusEl) {
+            apiStatusEl.innerText = "API Degraded";
+            apiStatusEl.className = "badge-pill badge-warning";
+            apiStatusEl.style.backgroundColor = "#E44141";
+            apiStatusEl.style.color = "#FFF";
+        }
     }
 }
 
@@ -122,9 +146,9 @@ function formatPlayer(user, runStatus) {
         } else if (style?.style == "solid") {
             display = `<span style="color:${style.color.dark}">${escape(nameStr)}</span>`;
         }
-        return `<span class="player-wrapper">${flagHtml}<b>${display}</b>${rankBadge}</span>`;
+        return `<span class="player-wrapper touch-optimized copyable-data" data-copy-val="${nameStr}" tabindex="-1" role="button">${flagHtml}<b>${display}</b>${rankBadge}</span>`;
     } 
-    return `<span class="player-wrapper">${flagHtml}<span>${display}</span>${rankBadge}</span>`;
+    return `<span class="player-wrapper touch-optimized copyable-data" data-copy-val="${nameStr}" tabindex="-1" role="button">${flagHtml}<span>${display}</span>${rankBadge}</span>`;
 }
 
 function str_time(time) {
@@ -208,14 +232,14 @@ function renderTab() {
             let p_html = run.players.map(p => formatPlayer(p, run.status)).join(", ");
             let stat = run.status === 'Verified' ? `<span class="status-badge status-verified">Verified</span>` : `<span class="status-badge status-pending">Unverified</span>`;
 
-            tableHTML += `<tr>
-                <td style="color:var(--text-muted); font-weight:700; text-align:center;">${rankDisplay}</td>
-                <td>${p_html}</td>
-                <td style="color:var(--accent); font-weight:600;">${str_time(run.time)}</td>
-                ${isQueue ? '' : `<td>${stat}</td>`}
-                <td><span style="background:#2a2a2a; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">${run.version}</span></td>
-                <td><span title="${run.date}" style="cursor: help; border-bottom: 1px dotted var(--text-muted);">${timeAgo(run.timestamp || run.date)}</span></td>
-                <td>
+                        tableHTML += `<tr>
+                <td data-label="${isQueue ? 'Row' : '#'}" style="color:var(--text-muted); font-weight:700; text-align:right;">${rankDisplay}</td>
+                <td data-label="Player(s)">${p_html}</td>
+                <td data-label="Time" style="color:var(--accent); font-weight:600;">${str_time(run.time)}</td>
+                ${isQueue ? '' : `<td data-label="Status">${stat}</td>`}
+                <td data-label="Version"><span style="background:#2a2a2a; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">${run.version}</span></td>
+                <td data-label="Date"><span title="${run.date}" style="cursor: help; border-bottom: 1px dotted var(--text-muted);">${timeAgo(run.timestamp || run.date)}</span></td>
+                <td data-label="Link">
                     <a href="${run.weblink}" target="_blank" class="external" title="Review Run">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -264,3 +288,87 @@ window.onload = () => {
     updateTabUI();
     fetchServerData();
 };
+
+
+// Mobile Touch and Gestures Controller
+document.addEventListener('DOMContentLoaded', () => {
+    // We need to attach listeners to dynamically created elements using event delegation
+    document.body.addEventListener('touchend', function(event) {
+        let cell = event.target.closest('.copyable-data');
+        if (!cell) return;
+
+        event.preventDefault(); // Prevent Chrome Touch to Search
+
+        const copyText = cell.getAttribute('data-copy-val') || cell.textContent.trim();
+        navigator.clipboard.writeText(copyText)
+            .then(() => {
+                triggerToastNotification(`Copied to clipboard: ${copyText}`);
+            })
+            .catch(err => {
+                console.error('Clipboard action failed:', err);
+            });
+    }, { passive: false });
+
+    // Also support regular clicks for desktop users to copy
+    document.body.addEventListener('click', function(event) {
+        let cell = event.target.closest('.copyable-data');
+        if (!cell) return;
+
+        const copyText = cell.getAttribute('data-copy-val') || cell.textContent.trim();
+        navigator.clipboard.writeText(copyText)
+            .then(() => {
+                triggerToastNotification(`Copied to clipboard: ${copyText}`);
+            })
+            .catch(err => {
+                console.error('Clipboard action failed:', err);
+            });
+    });
+
+    // Prevent multi-finger pinch-to-zoom gestures
+    document.addEventListener('touchstart', (event) => {
+        if (event.touches.length > 1) {
+            event.preventDefault();
+        }
+    }, { passive: false });
+
+    // Block native iOS gesture zoom events
+    document.addEventListener('gesturestart', (event) => {
+        event.preventDefault();
+    }, { passive: false });
+});
+
+function triggerToastNotification(message) {
+    let toast = document.getElementById('toast-box');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast-box';
+        document.body.appendChild(toast);
+    }
+    toast.className = 'toast-alert-visible';
+    toast.innerText = message;
+
+    // Clear any existing timeout
+    if (toast.timeoutId) {
+        clearTimeout(toast.timeoutId);
+    }
+
+    toast.timeoutId = setTimeout(() => {
+        toast.className = 'toast-alert-hidden';
+    }, 2500);
+}
+
+
+// Dynamically update the banner's relative time every 10 seconds
+setInterval(() => {
+    if (typeof serverData === "undefined" || !serverData || !serverData.updated) return;
+    const date = new Date(serverData.updated);
+    const now = new Date();
+    const diffSeconds = Math.floor((now - date) / 1000);
+    let timeStr = diffSeconds < 60 ? `${diffSeconds}s ago` : `${Math.floor(diffSeconds/60)}m ago`;
+    if (diffSeconds < 5) timeStr = 'Just now';
+
+    const latencyEl = document.getElementById('cache-latency-timestamp');
+    if (latencyEl) {
+        latencyEl.innerText = `Synchronized ${timeStr}`;
+    }
+}, 10000);

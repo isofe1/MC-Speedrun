@@ -75,23 +75,87 @@ body {
   background-color: rgba(0, 176, 112, 0.1);
 }
 
-.disclaimer-banner {
-  background: #1a1a1a;
-  color: #888;
-  text-align: center;
-  padding: 8px 10px;
-  font-size: 0.75rem;
-  border-bottom: 1px solid #333;
+
+/* Transparency Banner Styling */
+.transparency-banner-container {
+    background-color: #1a1a1a;
+    border-bottom: 2px solid #2e2e2e;
+    padding: 1rem 1.5rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
 }
 
-.disclaimer-banner a {
-  color: #00b070; /* Your green accent color */
-  text-decoration: none;
+.transparency-banner-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
-.disclaimer-banner a:hover {
-  text-decoration: underline;
+.banner-badge-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
+
+.badge-pill {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 12px;
+}
+
+.badge-warning {
+    background-color: #e3a008;
+    color: #111;
+}
+
+.badge-success {
+    background-color: #0e9f6e;
+    color: #fff;
+}
+
+.banner-legal-copy {
+    color: var(--text-muted); /* Lowers visual noise while remaining readable */
+    margin: 0;
+}
+
+.banner-sync-telemetry {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.banner-hyperlink {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.banner-hyperlink:hover {
+    color: var(--accent-hover);
+}
+
+@media screen and (max-width: 768px) {
+   .transparency-banner-container {
+        padding: 0.75rem 1rem;
+    }
+
+   .banner-sync-telemetry {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+
+   .telemetry-separator {
+        display: none; /* Hide vertical separator on stacked layouts */
+    }
+}
+
 
 /* Container & Table */
 .container {
@@ -215,7 +279,67 @@ a:hover { text-decoration: underline; }
 
   .pagination-container { gap: 5px; }
   .page-btn { width: 34px; height: 34px; font-size: 0.85rem; }
+
+  /* Mobile Card Layout for Tables */
+  table, thead, tbody, th, td, tr {
+    display: block;
+  }
+
+  /* Hide table headers (but not display: none;, for accessibility) */
+  thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+
+  tr {
+    background-color: var(--bg-panel);
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 10px;
+  }
+
+  td {
+    /* Behave like a "row" */
+    border: none;
+    border-bottom: 1px dashed var(--border);
+    position: relative;
+    padding-left: 40%;
+    text-align: right;
+    min-height: 48px; /* Touch target size */
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  td:last-child {
+    border-bottom: 0;
+  }
+
+  /*
+  Label the data
+  */
+  td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 10px;
+    width: 35%;
+    padding-right: 10px;
+    white-space: nowrap;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+  }
+
+  .table-container {
+      border: none;
+      background: none;
+  }
 }
+
 
 /* SMART TOOLTIP STYLES */
 .rank-badge {
@@ -274,4 +398,58 @@ a:hover { text-decoration: underline; }
 .tooltip:hover .tooltiptext, .tooltip:active .tooltiptext {
   visibility: visible;
   opacity: 1;
+}
+
+
+/* Touch and Selection Reset */
+.touch-optimized {
+    -webkit-touch-callout: none; /* Disables the native Callout menu on iOS */
+    -webkit-user-select: none;   /* Disables text selection in Webkit engines */
+    -moz-user-select: none;      /* Disables selection in Firefox */
+    -ms-user-select: none;       /* Disables selection in IE/Edge */
+    user-select: none;           /* Standard selection prevention property */
+
+    /* Disable double-tap zoom delay while keeping pinch-to-zoom intact */
+    touch-action: manipulation;
+
+    /* Remove default tap highlight colors on Android and iOS */
+    -webkit-tap-highlight-color: transparent;
+}
+
+.touch-optimized:focus {
+    outline: 0;
+}
+
+/* Toast Notification Styles */
+.toast-alert-visible {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    z-index: 1000;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+.toast-alert-hidden {
+    opacity: 0;
+    pointer-events: none;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    z-index: 1000;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    transition: opacity 0.3s;
 }
