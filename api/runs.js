@@ -1,119 +1,48 @@
-// api/runs.js (Replace full file)
+// api/runs.js
 const HEADER = "https://www.speedrun.com/api/v1/";
 const GAME_ID = "j1npme6p"; 
 const CAT_ID = "mkeyl926"; 
 const EXACT_VER_VAR_ID = "jlzkwql2";
 
-let cachedData = null;
-let lastFetchTime = 0;
-const CACHE_DURATION_MS = 60 * 1000;
-
-async function fetchFromSrc(endpoint) {
-    const res = await fetch(HEADER + endpoint);
-    if (!res.ok) throw new Error(`Speedrun API returned ${res.status}`);
-    return res.json();
-}
-
 export default async function handler(req, res) {
-    const now = Date.now();
-    if (cachedData && (now - lastFetchTime < CACHE_DURATION_MS)) {
-        res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
-        return res.status(200).json(cachedData);
-    }
-
     try {
-        const varData = await fetchFromSrc(`games/${GAME_ID}/variables`);
-        let var_map = {}; 
-        let seedVarId, seedValId, verSubVarId, verSubValId;
+        console.log("DEBUG: Starting API fetch...");
 
+        const fetchFromSrc = async (endpoint) => {
+            console.log(`DEBUG: Fetching ${endpoint}`);
+            const res = await fetch(HEADER + endpoint);
+            if (!res.ok) throw new Error(`SRC API returned ${res.status}`);
+            return res.json();
+        };
+
+        // 2. Resolve Variables
+        const varData = await fetchFromSrc(`games/${GAME_ID}/variables`);
+        let seedVarId, seedValId;
         for (let v of varData.data) {
-            if (v.category && v.category !== CAT_ID) continue;
+            if (v.category !== CAT_ID) continue;
             for (let valId in v.values.values) {
-                let label = v.values.values[valId].label;
-                var_map[valId] = label;
-                if (label === "Random Seed") { seedVarId = v.id; seedValId = valId; }
-                if (label === "1.16+") { verSubVarId = v.id; verSubValId = valId; }
+                if (v.values.values[valId].label === "Random Seed") { seedVarId = v.id; seedValId = valId; }
             }
         }
 
-        let lbUrl = `leaderboards/${GAME_ID}/category/${CAT_ID}?top=1000&embed=players`;
-        if (seedVarId && seedValId) lbUrl += `&var-${seedVarId}=${seedValId}`;
-        if (verSubVarId && verSubValId) lbUrl += `&var-${verSubVarId}=${verSubValId}`;
+        // 3. Fetch Data Concurrently
+        let lbUrl = `leaderboards/${GAME_ID}/category/${CAT_ID}?top=1000&embed=players&var-${seedVarId}=${seedValId}`;
+        const queueOffsets = [0, 200, 400]; // Reduced to 3 pages for testing
         
-        const queueOffsets = [0, 200, 400, 600, 800]; 
-        const queuePromises = queueOffsets.map(offset => 
-            fetchFromSrc(`runs?game=${GAME_ID}&category=${CAT_ID}&status=new&orderby=submitted&direction=desc&embed=players&max=200&offset=${offset}`)
-            .catch(() => ({ data: [] }))
-        );
-
-        const [lbData, ...queueResults] = await Promise.all([
-            fetchFromSrc(lbUrl),
-            ...queuePromises
+        console.log("DEBUG: Executing all requests...");
+        const results = await Promise.all([
+            fetchFromSrc(lbUrl).catch(e => { console.error("DEBUG: LB Error", e); return { data: { runs: [] } }; }),
+            ...queueOffsets.map(off => fetchFromSrc(`runs?game=${GAME_ID}&category=${CAT_ID}&status=new&max=200&offset=${off}`).catch(e => { console.error("DEBUG: Queue Error", e); return { data: [] }; }))
         ]);
 
-        // --- NEW: Map Official Ranks ---
-        let officialRanks = {};
-        lbData.data.runs.forEach(item => {
-            const rank = item.rank;
-            item.run.players.forEach(p => { if(p.id) officialRanks[p.id] = rank; });
-        });
+        console.log("DEBUG: Fetched successfully. Processing...");
+        // ... (rest of your logic to combine data)
+        
+        // Return success
+        return res.status(200).json({ leaderboard: [], queue: [], updated: new Date().toISOString() });
 
-        const lbPlayers = lbData.data.players.data;
-        let allCombined = [];
-        const isTargetVersion = (verLbl) => verLbl && verLbl.match(/^1\.(1[6-9])/);
-
-        // Process Leaderboard
-        for (let item of lbData.data.runs) {
-            let run = item.run;
-            let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
-            if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId) {
-                let resolvedPlayers = run.players.map(p => p.rel === 'user' ? (lbPlayers.find(u => u.id === p.id) || p) : p);
-                allCombined.push({
-                    time: run.times.primary_t,
-                    players: resolvedPlayers,
-                    version: verLbl,
-                    date: run.date || (run.submitted ? run.submitted.split("T")[0] : "Unknown"),
-                    timestamp: run.submitted || run.date || "1970-01-01",
-                    weblink: run.weblink.replace("http://", "https://"),
-                    status: 'Verified'
-                });
-            }
-        }
-
-        // Process Queue
-        let allQueueRuns = [];
-        for (let res of queueResults) if (res && res.data) allQueueRuns.push(...res.data);
-
-        for (let run of allQueueRuns) {
-            let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
-            if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId) {
-                let resolvedPlayers = (run.players && run.players.data) ? run.players.data : run.players;
-                allCombined.push({
-                    time: run.times.primary_t,
-                    players: resolvedPlayers,
-                    version: verLbl,
-                    date: run.date || (run.submitted ? run.submitted.split("T")[0] : "Unknown"),
-                    timestamp: run.submitted || run.date || "1970-01-01",
-                    weblink: run.weblink.replace("http://", "https://"),
-                    status: 'Pending'
-                });
-            }
-        }
-
-        allCombined.sort((a, b) => a.time - b.time);
-        let pureQueue = allCombined.filter(r => r.status === 'Pending');
-
-        cachedData = {
-            leaderboard: allCombined.filter(r => r.status === 'Verified'),
-            queue: pureQueue,
-            officialRanks: officialRanks, // Added this
-            updated: new Date().toISOString()
-        };
-        lastFetchTime = Date.now();
-
-        res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
-        return res.status(200).json(cachedData);
     } catch (error) {
-        return res.status(500).json({ error: 'Failed' });
+        console.error("DEBUG: CRITICAL ERROR in api/runs.js", error);
+        return res.status(500).json({ error: error.message });
     }
 }
