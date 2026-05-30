@@ -1,5 +1,6 @@
 // Data State
 let serverData = { leaderboard: [], queue: [] };
+let playerRankMap = {}; // New: Stores the best verified rank for every player ID
 let activeTab = 'leaderboard';
 let currentPage = 1;
 const runsPerPage = 100;
@@ -12,7 +13,19 @@ async function fetchServerData() {
         if (!res.ok) throw new Error("Server error");
         serverData = await res.json();
         
-        // Safely show update time
+        // New: Build Rank Map for all players in the verified leaderboard
+        playerRankMap = {};
+        serverData.leaderboard.forEach((run, index) => {
+            const rank = index + 1;
+            run.players.forEach(p => {
+                const pid = p.id || p.name;
+                // Only save the best (lowest) rank
+                if (!playerRankMap[pid] || rank < playerRankMap[pid]) {
+                    playerRankMap[pid] = rank;
+                }
+            });
+        });
+        
         if (serverData.updated) {
             const date = new Date(serverData.updated);
             document.getElementById('last-updated').innerText = `Last updated: ${date.toLocaleTimeString()}`;
@@ -21,11 +34,11 @@ async function fetchServerData() {
         renderTab();
     } catch (err) {
         console.error(err);
-        document.getElementById('table-body').innerHTML = `<tr><td colspan="7" style="text-align:center; color:#E44141; padding: 40px;"><b>Failed to fetch data from backend.</b></td></tr>`;
+        document.getElementById('table-body').innerHTML = `<tr><td colspan="7" style="text-align:center; color:#E44141; padding: 40px;"><b>Failed to fetch data.</b></td></tr>`;
     }
 }
 
-// Auto-refresh every 60 seconds (1 minute)
+// Auto-refresh every 60 seconds
 setInterval(fetchServerData, 60000);
 
 // Tab Switching
@@ -33,15 +46,11 @@ window.switchTab = function(tab) {
     activeTab = tab;
     currentPage = 1;
     dateSortState = 0;
-    
     document.getElementById('tab-leaderboard').classList.toggle('active', tab === 'leaderboard');
     document.getElementById('tab-queue').classList.toggle('active', tab === 'queue');
-    
-    // Updated header text
     document.getElementById('page-desc').innerText = tab === 'leaderboard' 
         ? "Combined Rankings (All Known PBs)" 
         : "Pending Verification Queue";
-        
     renderTab();
 }
 
@@ -60,10 +69,18 @@ function gradient(start, end, len) {
     return colors;
 }
 
-function formatPlayer(user) {
+// Updated: formatPlayer now accepts showRank flag
+function formatPlayer(user, showRank = false) {
     if (!user) return "?";
     let flagHtml = '<span class="player-flag-empty"></span>'; 
     let nameStr = user.names?.international || user.name || "?";
+    let pid = user.id || user.name;
+    let rankBadge = "";
+
+    // Add rank badge if in queue and player is ranked
+    if (showRank && playerRankMap[pid]) {
+        rankBadge = `<span class="rank-badge">#${playerRankMap[pid]}</span>`;
+    }
 
     if (user.location?.country?.code) {
         let cc = user.location.country.code.toLowerCase();
@@ -86,9 +103,9 @@ function formatPlayer(user) {
         } else if (style?.style == "solid") {
             display = `<span style="color:${style.color.dark}">${escape(nameStr)}</span>`;
         }
-        return `<span class="player-wrapper">${flagHtml}<b>${display}</b></span>`;
+        return `<span class="player-wrapper">${flagHtml}<b>${display}</b>${rankBadge}</span>`;
     } 
-    return `<span class="player-wrapper">${flagHtml}<span>${display}</span></span>`;
+    return `<span class="player-wrapper">${flagHtml}<span>${display}</span>${rankBadge}</span>`;
 }
 
 function str_time(time) {
@@ -161,7 +178,9 @@ function renderTab() {
                 if (rank === 2) rankDisplay = `<img src="2nd.png" class="trophy-icon">`;
                 if (rank === 3) rankDisplay = `<img src="3rd.png" class="trophy-icon">`;
             }
-            let p_html = run.players.map(p => formatPlayer(p)).join(", ");
+            
+            // Pass 'isQueue' so the formatPlayer function knows when to show the rank badge
+            let p_html = run.players.map(p => formatPlayer(p, isQueue)).join(", ");
             let stat = run.status === 'Verified' ? `<span class="status-badge status-verified">Verified</span>` : `<span class="status-badge status-pending">Unverified</span>`;
             tableHTML += `<tr>
                 <td style="color:var(--text-muted); font-weight:700; text-align:center;">${rankDisplay}</td>
