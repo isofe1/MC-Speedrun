@@ -399,3 +399,25 @@ window.onload = () => {
 
 // Auto-refresh every 60 seconds (1 minute)
 setInterval(fetchServerData, 60000);
+
+
+
+document.addEventListener('deviceready', () => {
+    document.addEventListener("resume", () => {
+        // When app comes back to foreground, immediately refresh data
+        fetchServerData();
+    }, false);
+
+    document.addEventListener("backbutton", (e) => {
+        if (currentPage > 1) {
+            changePage(1);
+        } else if (activeTab === 'queue') {
+            switchTab('leaderboard');
+        } else {
+            // Let the app close
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+                window.Capacitor.Plugins.App.exitApp();
+            }
+        }
+    }, false);
+}, false);
