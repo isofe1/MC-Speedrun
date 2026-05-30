@@ -140,9 +140,9 @@ function renderTab() {
             let rankDisplay = `#${rank}`;
             
             if (!isQueue) {
-                if (rank === 1) rankDisplay = `<img src="https://www.speedrun.com/images/icons/goldtrophy.png" class="trophy-icon">`;
-                if (rank === 2) rankDisplay = `<img src="https://www.speedrun.com/images/icons/silvertrophy.png" class="trophy-icon">`;
-                if (rank === 3) rankDisplay = `<img src="https://www.speedrun.com/images/icons/bronzetrophy.png" class="trophy-icon">`;
+                if (rank === 1) rankDisplay = `<img src="1st.png" class="trophy-icon">`;
+                if (rank === 2) rankDisplay = `<img src="2nd.png" class="trophy-icon">`;
+                if (rank === 3) rankDisplay = `<img src="3rd.png" class="trophy-icon">`;
             }
 
             let p_html = run.players.map(p => formatPlayer(p)).join(", ");
