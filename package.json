@@ -1,6 +1,7 @@
 {
   "name": "mc-speedrun-leaderboard",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "start": "echo 'Run via Vercel'"
   }
