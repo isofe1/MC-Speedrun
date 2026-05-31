@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Native Android APK
 
 on:
   push:
@@ -18,22 +18,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install Dependencies
-        run: npm install
-
-      - name: Sync Capacitor
-        run: npx cap sync android
-
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '21'
+          java-version: '17'
 
       - name: Cache Gradle Packages
         uses: actions/cache@v4
@@ -46,14 +35,13 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Grant Execute Permission for Gradlew
-        run: chmod +x android/gradlew
+        run: chmod +x gradlew
 
       - name: Build Debug APK
-        working-directory: ./android
         run: ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
