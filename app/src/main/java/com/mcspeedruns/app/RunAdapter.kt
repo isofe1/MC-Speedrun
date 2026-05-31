@@ -19,14 +19,10 @@ class RunAdapter : RecyclerView.Adapter<RunAdapter.RunViewHolder>() {
         runs.clear()
         runs.addAll(newRuns)
         isQueue = isQueueTab
-        notifyDataSetDataSetChanged()
-    }
-
-    // Workaround since notifyDataSetChanged is sometimes a bit weird in raw adapters,
-    // it's just standard notifyDataSetChanged.
-    fun notifyDataSetDataSetChanged() {
         notifyDataSetChanged()
     }
+
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RunViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_run, parent, false)

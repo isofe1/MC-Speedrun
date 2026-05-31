@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.tabs.TabLayout
 import kotlinx.coroutines.*
+import androidx.lifecycle.lifecycleScope
 
 class MainActivity : AppCompatActivity() {
 
@@ -58,7 +59,7 @@ class MainActivity : AppCompatActivity() {
         }
         tvStatus.text = "Fetching data from speedrun.com..."
 
-        CoroutineScope(Dispatchers.Main).launch {
+        lifecycleScope.launch {
             val result = SpeedrunApi.getRuns()
 
             if (!isRefresh) {

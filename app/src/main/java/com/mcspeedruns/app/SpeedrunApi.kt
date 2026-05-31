@@ -20,7 +20,9 @@ object SpeedrunApi {
     private const val EXACT_VER_VAR_ID = "jlzkwql2"
 
     private suspend fun fetch(endpoint: String): String? = withContext(Dispatchers.IO) {
-        val request = Request.Builder().url(HEADER + endpoint).build()
+        val request = Request.Builder().url(HEADER + endpoint)
+            .addHeader("User-Agent", "MCSpeedrunApp/1.0")
+            .build()
         try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
