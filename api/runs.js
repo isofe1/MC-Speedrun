@@ -85,8 +85,8 @@ export default async function handler(req, res) {
                 let run = item.run;
                 let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
 
-                // Only count the rank if it's a valid 1.16-1.19 Random Seed run
-                if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId) {
+                // Only count the rank if it's a valid 1.16-1.19 Random Seed run, and time is >= 5 minutes (300 seconds)
+                if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId && run.times.primary_t >= 300) {
                     
                     // --- THE FIX: Assign exact rank manually based on valid runs ---
                     if (run.players) {
@@ -127,7 +127,7 @@ export default async function handler(req, res) {
         for (let run of allQueueRuns) {
             let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
 
-            if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId) {
+            if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId && run.times.primary_t >= 300) {
                 let resolvedPlayers = (run.players && run.players.data) ? run.players.data : run.players;
                 let playerKey = resolvedPlayers.map(p => p.id || p.name).sort().join("|");
                 
