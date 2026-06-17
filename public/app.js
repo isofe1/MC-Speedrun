@@ -5,6 +5,9 @@ let currentPage = 1;
 const runsPerPage = 100;
 let dateSortState = 0; 
 
+// Filter State
+let selectedCountryFilter = 'all'; // 'all', 'unknown', or country code (e.g., 'ca')
+
 // Initialize
 async function fetchServerData() {
     try {
@@ -68,11 +71,152 @@ window.switchTab = function(tab) {
     activeTab = tab;
     currentPage = 1;
     dateSortState = 0; 
+    selectedCountryFilter = 'all'; // Reset filter on tab switch
+    document.getElementById('country-dropdown-text').innerText = "All Regions";
     
     updateTabUI();
     updateURL(activeTab, currentPage);
     renderTab();
 }
+
+// --- NEW: Custom Country Dropdown Logic ---
+function getCountryCode(user) {
+    if (!user) return null;
+    let nameStr = user.names?.international || user.name || "?";
+
+    if (user.location?.country?.code) {
+        return user.location.country.code.toLowerCase();
+    } else if (user.rel === "guest") {
+        let match = nameStr.match(/^\[([a-z]{2,3})\](.*)/i);
+        if (match) {
+            return match[1].toLowerCase();
+        }
+    }
+    return null;
+}
+
+function getCountryName(user) {
+    if (!user) return null;
+    if (user.location?.country?.names?.international) {
+        return user.location.country.names.international;
+    }
+    return null; // Guest names usually just have code, so we don't have the full English name without a map. But API returns full names for real users.
+}
+
+// Full country name mapping for common guest codes or missing full names
+const countryNameMap = {
+    "us": "United States", "ca": "Canada", "gb": "United Kingdom", "au": "Australia",
+    "de": "Germany", "fr": "France", "it": "Italy", "es": "Spain", "nl": "Netherlands",
+    "se": "Sweden", "no": "Norway", "fi": "Finland", "dk": "Denmark", "pl": "Poland",
+    "ru": "Russia", "br": "Brazil", "jp": "Japan", "kr": "South Korea", "cn": "China",
+    "mx": "Mexico", "ar": "Argentina", "cl": "Chile", "za": "South Africa"
+};
+
+function extractCountries(runs) {
+    const counts = {};
+    const names = {};
+
+    runs.forEach(run => {
+        // Run qualifies if ANY player matches the region.
+        // To build the list of available regions, we look at all players in the run.
+        run.players.forEach(p => {
+            const code = getCountryCode(p);
+            if (code) {
+                counts[code] = (counts[code] || 0) + 1;
+                if (!names[code]) {
+                    const apiName = getCountryName(p);
+                    names[code] = apiName || countryNameMap[code] || code.toUpperCase();
+                }
+            } else {
+                counts['unknown'] = (counts['unknown'] || 0) + 1;
+            }
+        });
+    });
+
+    const countryArray = Object.keys(counts).map(code => ({
+        code: code,
+        name: code === 'unknown' ? 'Unknown Region' : (names[code] || code.toUpperCase()),
+        count: counts[code]
+    }));
+
+    // Sort: highest count first, then alphabetical
+    countryArray.sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.name.localeCompare(b.name);
+    });
+
+    return countryArray;
+}
+
+function populateCountryDropdown(runs) {
+    const menu = document.getElementById('country-dropdown-menu');
+    const countries = extractCountries(runs);
+
+    let html = `<div class="dropdown-item ${selectedCountryFilter === 'all' ? 'selected' : ''}" data-value="all">
+        <span class="dropdown-item-icon">🌐</span>
+        <span class="dropdown-item-name">All Regions</span>
+    </div>`;
+
+    countries.forEach(c => {
+        const isSelected = selectedCountryFilter === c.code;
+        let iconHtml = '';
+        if (c.code === 'unknown') {
+            iconHtml = `<span class="dropdown-item-icon" style="font-size:0.9rem; color: #a0a0a0;">❓</span>`;
+        } else {
+            iconHtml = `<img src="https://www.speedrun.com/images/flags/${c.code}.png" class="dropdown-item-flag" alt="${c.code}">`;
+        }
+
+        html += `<div class="dropdown-item ${isSelected ? 'selected' : ''}" data-value="${c.code}">
+            ${iconHtml}
+            <span class="dropdown-item-name">${escape(c.name)}</span>
+            <span class="dropdown-item-count">(${c.count})</span>
+        </div>`;
+    });
+
+    menu.innerHTML = html;
+
+    // Attach event listeners to items
+    menu.querySelectorAll('.dropdown-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation(); // prevent closing immediately from outside click
+            selectedCountryFilter = item.getAttribute('data-value');
+
+            // Update button text
+            const nameEl = item.querySelector('.dropdown-item-name');
+            document.getElementById('country-dropdown-text').innerText = nameEl ? nameEl.innerText : "All Regions";
+
+            // Close dropdown
+            menu.classList.remove('show');
+            document.getElementById('country-filter-dropdown').classList.remove('open');
+
+            // Reset page and render
+            currentPage = 1;
+            updateURL(activeTab, currentPage);
+            renderTab();
+        });
+    });
+}
+
+// Dropdown toggle listener
+document.addEventListener('DOMContentLoaded', () => {
+    const dropdownBtn = document.getElementById('country-dropdown-btn');
+    const dropdownMenu = document.getElementById('country-dropdown-menu');
+    const dropdownContainer = document.getElementById('country-filter-dropdown');
+
+    dropdownBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('show');
+        dropdownContainer.classList.toggle('open');
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!dropdownContainer.contains(e.target)) {
+            dropdownMenu.classList.remove('show');
+            dropdownContainer.classList.remove('open');
+        }
+    });
+});
 
 // Formatting Helpers
 function escape(str) { return String(str || "?").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }
@@ -168,8 +312,27 @@ window.toggleDateSort = function() {
 }
 
 function renderTab() {
-    const list = activeTab === 'leaderboard' ? serverData.leaderboard : serverData.queue;
+    let list = activeTab === 'leaderboard' ? serverData.leaderboard : serverData.queue;
     const isQueue = activeTab === 'queue';
+
+    // Apply country filter
+    if (selectedCountryFilter !== 'all') {
+        list = list.filter(run => {
+            return run.players.some(p => {
+                const code = getCountryCode(p);
+                if (selectedCountryFilter === 'unknown') {
+                    return !code;
+                }
+                return code === selectedCountryFilter;
+            });
+        });
+    }
+
+    // Populate dropdown dynamically based on the CURRENT un-filtered list for this tab
+    // so we always show the available regions for the current tab.
+    const baseList = activeTab === 'leaderboard' ? serverData.leaderboard : serverData.queue;
+    populateCountryDropdown(baseList);
+
 
     document.getElementById('run-count').innerText = `${list.length} ${isQueue ? 'Total Runs' : 'Unique Runners'}`;
     document.getElementById('avg-time').innerText = isQueue ? 'Pending Verification' : `${serverData.queue.length} pending verification`;
