@@ -325,6 +325,15 @@ function renderTab() {
     let list = activeTab === 'leaderboard' ? serverData.leaderboard : serverData.queue;
     const isQueue = activeTab === 'queue';
 
+    // Assign global rank to leaderboard runs before filtering so it's preserved
+    if (!isQueue) {
+        list.forEach((run, idx) => {
+            if (run.globalRank === undefined) {
+                run.globalRank = idx + 1;
+            }
+        });
+    }
+
     // Apply country filter
     if (selectedCountryFilter !== 'all') {
         list = list.filter(run => {
@@ -369,7 +378,7 @@ function renderTab() {
         const pageRuns = list.slice(start, start + runsPerPage);
 
         pageRuns.forEach((run, index) => {
-            let rank = start + index + 1;
+            let rank = isQueue ? (start + index + 1) : run.globalRank;
             let rankDisplay = `#${rank}`;
             
             if (!isQueue) {
