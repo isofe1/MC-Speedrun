@@ -73,6 +73,7 @@ window.switchTab = function(tab) {
     dateSortState = 0; 
     selectedCountryFilter = 'all'; // Reset filter on tab switch
     document.getElementById('country-dropdown-text').innerText = "All Regions";
+    document.querySelector('#country-dropdown-btn .dropdown-icon').innerHTML = "🌐";
     
     updateTabUI();
     updateURL(activeTab, currentPage);
@@ -181,9 +182,18 @@ function populateCountryDropdown(runs) {
             e.stopPropagation(); // prevent closing immediately from outside click
             selectedCountryFilter = item.getAttribute('data-value');
 
-            // Update button text
+            // Update button text and icon
             const nameEl = item.querySelector('.dropdown-item-name');
             document.getElementById('country-dropdown-text').innerText = nameEl ? nameEl.innerText : "All Regions";
+
+            const btnIconEl = document.querySelector('#country-dropdown-btn .dropdown-icon');
+            if (selectedCountryFilter === 'all') {
+                btnIconEl.innerHTML = "🌐";
+            } else if (selectedCountryFilter === 'unknown') {
+                btnIconEl.innerHTML = "❓";
+            } else {
+                btnIconEl.innerHTML = `<img src="https://www.speedrun.com/images/flags/${selectedCountryFilter}.png" alt="${selectedCountryFilter}" style="width: 18px; height: 12px; border-radius: 2px; object-fit: cover;">`;
+            }
 
             // Close dropdown
             menu.classList.remove('show');
