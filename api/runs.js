@@ -172,8 +172,15 @@ export default async function handler(req, res) {
 
 
 
+
             // Note for queue runs we still need to filter because the API doesn't filter by vars on the /runs endpoint like it does on leaderboards
             if (run.values && run.values[seedVarId] === seedValId && run.values[verSubVarId] === verSubValId) {
+
+                // For Random Seed, block any unverified (pending) runs under 3 minutes (180 seconds)
+                if (seedTypeQuery === 'random' && run.times.primary_t < 180) {
+                    continue;
+                }
+
 
 
 
