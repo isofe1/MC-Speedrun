@@ -39,31 +39,78 @@ async function fetchServerData(isFilterChange = false) {
 // Auto-refresh every 60 seconds (1 minute)
 setInterval(fetchServerData, 60000);
 
+
 // URL State Management
 function updateURL(tab, page) {
     const url = new URL(window.location);
     url.searchParams.set('tab', tab);
+    url.searchParams.set('seedType', selectedSeedFilter);
+    url.searchParams.set('version', selectedVersionFilter);
     if (page > 1) {
         url.searchParams.set('page', page);
     } else {
         url.searchParams.delete('page');
     }
-    window.history.pushState({ tab, page }, '', url);
+    window.history.pushState({ tab, page, seed: selectedSeedFilter, version: selectedVersionFilter }, '', url);
+    updateSEO();
 }
+
+function updateSEO() {
+    const seedText = selectedSeedFilter === 'set' ? 'Set Seed' : 'Random Seed';
+    const versionEl = document.getElementById('version-dropdown-text');
+    const versionText = versionEl ? versionEl.innerText : '1.16-1.19';
+    const tabText = activeTab === 'queue' ? 'Pending Queue' : 'Leaderboard';
+
+    // Update Page Title
+    const newTitle = `Minecraft Speedrun ${tabText} | ${versionText} Any% Glitchless ${seedText}`;
+    document.title = newTitle;
+
+    const titleEl = document.getElementById('page-title');
+    if (titleEl) {
+        titleEl.innerText = `${versionText} Any% Glitchless - ${seedText}`;
+    }
+
+    // Update Meta Description dynamically
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+        metaDesc.setAttribute('content', `View the ${tabText.toLowerCase()} for Minecraft ${versionText} Any% Glitchless ${seedText} runs.`);
+    }
+}
+
 
 window.addEventListener('popstate', (event) => {
     if (event.state) {
         activeTab = event.state.tab || 'leaderboard';
         currentPage = event.state.page || 1;
+        selectedSeedFilter = event.state.seed || 'random';
+        selectedVersionFilter = event.state.version || '4qye4731';
     } else {
         const urlParams = new URLSearchParams(window.location.search);
         activeTab = urlParams.get('tab') === 'queue' ? 'queue' : 'leaderboard';
         currentPage = parseInt(urlParams.get('page')) || 1;
+        selectedSeedFilter = urlParams.get('seedType') || 'random';
+        selectedVersionFilter = urlParams.get('version') || '4qye4731';
     }
     dateSortState = 0;
 
+    // Sync UI with URL state
+    const seedItem = document.querySelector(`#seed-dropdown-menu .dropdown-item[data-value="${selectedSeedFilter}"]`);
+    if (seedItem) {
+        document.querySelectorAll('#seed-dropdown-menu .dropdown-item').forEach(i => i.classList.remove('selected'));
+        seedItem.classList.add('selected');
+        document.getElementById('seed-dropdown-text').innerText = seedItem.innerText;
+    }
+
+    const versionItem = document.querySelector(`#version-dropdown-menu .dropdown-item[data-value="${selectedVersionFilter}"]`);
+    if (versionItem) {
+        document.querySelectorAll('#version-dropdown-menu .dropdown-item').forEach(i => i.classList.remove('selected'));
+        versionItem.classList.add('selected');
+        document.getElementById('version-dropdown-text').innerText = versionItem.innerText;
+    }
+
     updateTabUI();
-    renderTab();
+    updateSEO();
+    fetchServerData(true);
 });
 
 function updateTabUI() {
@@ -288,12 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedSeedFilter !== val) {
             selectedSeedFilter = val;
 
-            // Update the main title dynamically based on selection
-            const titleEl = document.getElementById('page-title');
-            if (titleEl) {
-                const seedText = val === 'set' ? 'Set Seed' : 'Random Seed';
-                titleEl.innerText = `Any% Glitchless - ${seedText}`;
-            }
+            updateURL(activeTab, 1);
 
             currentPage = 1;
             fetchServerData(true); // Fetch new data from server with loading state
@@ -305,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedVersionFilter !== val) {
             selectedVersionFilter = val;
             currentPage = 1;
+            updateURL(activeTab, 1);
             fetchServerData(true); // Fetch new data from server with loading state
         }
     });
@@ -507,15 +550,35 @@ window.changePage = function(page) {
     document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+
 window.onload = () => {
     // Read initial state from URL
     const urlParams = new URLSearchParams(window.location.search);
     activeTab = urlParams.get('tab') === 'queue' ? 'queue' : 'leaderboard';
     currentPage = parseInt(urlParams.get('page')) || 1;
 
+    if (urlParams.get('seedType')) selectedSeedFilter = urlParams.get('seedType');
+    if (urlParams.get('version')) selectedVersionFilter = urlParams.get('version');
+
+    // Sync UI with URL state
+    const seedItem = document.querySelector(`#seed-dropdown-menu .dropdown-item[data-value="${selectedSeedFilter}"]`);
+    if (seedItem) {
+        document.querySelectorAll('#seed-dropdown-menu .dropdown-item').forEach(i => i.classList.remove('selected'));
+        seedItem.classList.add('selected');
+        document.getElementById('seed-dropdown-text').innerText = seedItem.innerText;
+    }
+
+    const versionItem = document.querySelector(`#version-dropdown-menu .dropdown-item[data-value="${selectedVersionFilter}"]`);
+    if (versionItem) {
+        document.querySelectorAll('#version-dropdown-menu .dropdown-item').forEach(i => i.classList.remove('selected'));
+        versionItem.classList.add('selected');
+        document.getElementById('version-dropdown-text').innerText = versionItem.innerText;
+    }
+
     // Set initial history state to allow popstate to work correctly returning to the very first load
-    window.history.replaceState({ tab: activeTab, page: currentPage }, '', window.location.href);
+    window.history.replaceState({ tab: activeTab, page: currentPage, seed: selectedSeedFilter, version: selectedVersionFilter }, '', window.location.href);
 
     updateTabUI();
+    updateSEO();
     fetchServerData();
 };
