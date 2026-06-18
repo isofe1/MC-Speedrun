@@ -77,11 +77,15 @@ export default async function handler(req, res) {
         }
 
 
+
         // 3. Fetch Leaderboard (Verified)
         let lbUrl = `leaderboards/${GAME_ID}/category/${CAT_ID}?top=1000&embed=players`;
         if (seedVarId && seedValId) lbUrl += `&var-${seedVarId}=${seedValId}`;
         if (verSubVarId && verSubValId) lbUrl += `&var-${verSubVarId}=${verSubValId}`;
         
+        console.log(`Fetching Leaderboard: ${lbUrl}`);
+
+
         // --- FASTER FETCHING START ---
         const queueOffsets = [0, 200, 400, 600, 800]; 
         const queuePromises = queueOffsets.map(offset => 
@@ -102,15 +106,23 @@ export default async function handler(req, res) {
 
 
 
+
         // Process Leaderboard
         let officialRankCounter = 1;
         if (lbData && lbData.data && lbData.data.runs) {
             for (let item of lbData.data.runs) {
                 let run = item.run;
-                let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
+                let verLbl = "Unknown";
+                if (run.values && run.values[EXACT_VER_VAR_ID]) {
+                    verLbl = var_map[run.values[EXACT_VER_VAR_ID]] || "Unknown";
+                }
 
-                // Only count the rank if it's a valid run and time is >= 5 minutes (300 seconds)
-                if (run.times.primary_t >= 300) {
+
+                // Only count the rank if it's a valid run and time is >= 5 minutes (300 seconds) for random seeds
+                const minTime = seedTypeQuery === 'random' ? 300 : 0;
+                if (run.times.primary_t >= minTime) {
+
+
 
                     
                     // --- THE FIX: Assign exact rank manually based on valid runs ---
@@ -150,10 +162,19 @@ export default async function handler(req, res) {
             if (res && res.data) allQueueRuns.push(...res.data);
         }
 
-        for (let run of allQueueRuns) {
-            let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
 
-            if (run.values[seedVarId] === seedValId && run.values[verSubVarId] === verSubValId && run.times.primary_t >= 300) {
+        for (let run of allQueueRuns) {
+            let verLbl = "Unknown";
+            if (run.values && run.values[EXACT_VER_VAR_ID]) {
+                verLbl = var_map[run.values[EXACT_VER_VAR_ID]] || "Unknown";
+            }
+
+
+            // Note for queue runs we still need to filter because the API doesn't filter by vars on the /runs endpoint like it does on leaderboards
+            const minTime = seedTypeQuery === 'random' ? 300 : 0;
+            if (run.values && run.values[seedVarId] === seedValId && run.values[verSubVarId] === verSubValId && run.times.primary_t >= minTime) {
+
+
 
                 let resolvedPlayers = (run.players && run.players.data) ? run.players.data : run.players;
                 let playerKey = resolvedPlayers.map(p => p.id || p.name).sort().join("|");
