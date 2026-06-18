@@ -118,9 +118,10 @@ export default async function handler(req, res) {
                 }
 
 
-                // Only count the rank if it's a valid run and time is >= 5 minutes (300 seconds) for random seeds
-                const minTime = seedTypeQuery === 'random' ? 300 : 0;
-                if (run.times.primary_t >= minTime) {
+
+                // Process all valid runs regardless of time
+                if (true) {
+
 
 
 
@@ -170,9 +171,10 @@ export default async function handler(req, res) {
             }
 
 
+
             // Note for queue runs we still need to filter because the API doesn't filter by vars on the /runs endpoint like it does on leaderboards
-            const minTime = seedTypeQuery === 'random' ? 300 : 0;
-            if (run.values && run.values[seedVarId] === seedValId && run.values[verSubVarId] === verSubValId && run.times.primary_t >= minTime) {
+            if (run.values && run.values[seedVarId] === seedValId && run.values[verSubVarId] === verSubValId) {
+
 
 
 
