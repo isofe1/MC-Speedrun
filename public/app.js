@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedSeedFilter = val;
 
             // Update the main title dynamically based on selection
-            const titleEl = document.getElementById('main-title');
+            const titleEl = document.getElementById('page-title');
             if (titleEl) {
                 const seedText = val === 'set' ? 'Set Seed' : 'Random Seed';
                 titleEl.innerText = `Any% Glitchless - ${seedText}`;
