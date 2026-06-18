@@ -5,13 +5,23 @@ let currentPage = 1;
 const runsPerPage = 100;
 let dateSortState = 0; 
 
+
 // Filter State
 let selectedCountryFilter = 'all'; // 'all', 'unknown', or country code (e.g., 'ca')
+let selectedSeedFilter = 'random'; // 'random' or 'set'
+let selectedVersionFilter = '4qye4731'; // '4qye4731' is 1.16-1.19
 
 // Initialize
-async function fetchServerData() {
+
+async function fetchServerData(isFilterChange = false) {
+    if (isFilterChange) {
+        document.getElementById('table-body').innerHTML = `<tr><td colspan="7" id="status-container"><div class="spinner"></div><br><br>Fetching Data...</td></tr>`;
+    }
+
     try {
-        const res = await fetch('/api/runs'); 
+        const url = `/api/runs?seedType=${selectedSeedFilter}&version=${selectedVersionFilter}`;
+        const res = await fetch(url);
+
         if (!res.ok) throw new Error("Server error");
         serverData = await res.json();
         
@@ -29,31 +39,78 @@ async function fetchServerData() {
 // Auto-refresh every 60 seconds (1 minute)
 setInterval(fetchServerData, 60000);
 
+
 // URL State Management
 function updateURL(tab, page) {
     const url = new URL(window.location);
     url.searchParams.set('tab', tab);
+    url.searchParams.set('seedType', selectedSeedFilter);
+    url.searchParams.set('version', selectedVersionFilter);
     if (page > 1) {
         url.searchParams.set('page', page);
     } else {
         url.searchParams.delete('page');
     }
-    window.history.pushState({ tab, page }, '', url);
+    window.history.pushState({ tab, page, seed: selectedSeedFilter, version: selectedVersionFilter }, '', url);
+    updateSEO();
 }
+
+function updateSEO() {
+    const seedText = selectedSeedFilter === 'set' ? 'Set Seed' : 'Random Seed';
+    const versionEl = document.getElementById('version-dropdown-text');
+    const versionText = versionEl ? versionEl.innerText : '1.16-1.19';
+    const tabText = activeTab === 'queue' ? 'Pending Queue' : 'Leaderboard';
+
+    // Update Page Title
+    const newTitle = `Minecraft Speedrun ${tabText} | ${versionText} Any% Glitchless ${seedText}`;
+    document.title = newTitle;
+
+    const titleEl = document.getElementById('page-title');
+    if (titleEl) {
+        titleEl.innerText = `${versionText} Any% Glitchless - ${seedText}`;
+    }
+
+    // Update Meta Description dynamically
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+        metaDesc.setAttribute('content', `View the ${tabText.toLowerCase()} for Minecraft ${versionText} Any% Glitchless ${seedText} runs.`);
+    }
+}
+
 
 window.addEventListener('popstate', (event) => {
     if (event.state) {
         activeTab = event.state.tab || 'leaderboard';
         currentPage = event.state.page || 1;
+        selectedSeedFilter = event.state.seed || 'random';
+        selectedVersionFilter = event.state.version || '4qye4731';
     } else {
         const urlParams = new URLSearchParams(window.location.search);
         activeTab = urlParams.get('tab') === 'queue' ? 'queue' : 'leaderboard';
         currentPage = parseInt(urlParams.get('page')) || 1;
+        selectedSeedFilter = urlParams.get('seedType') || 'random';
+        selectedVersionFilter = urlParams.get('version') || '4qye4731';
     }
     dateSortState = 0;
 
+    // Sync UI with URL state
+    const seedItem = document.querySelector(`#seed-dropdown-menu .dropdown-item[data-value="${selectedSeedFilter}"]`);
+    if (seedItem) {
+        document.querySelectorAll('#seed-dropdown-menu .dropdown-item').forEach(i => i.classList.remove('selected'));
+        seedItem.classList.add('selected');
+        document.getElementById('seed-dropdown-text').innerText = seedItem.innerText;
+    }
+
+    const versionItem = document.querySelector(`#version-dropdown-menu .dropdown-item[data-value="${selectedVersionFilter}"]`);
+    if (versionItem) {
+        document.querySelectorAll('#version-dropdown-menu .dropdown-item').forEach(i => i.classList.remove('selected'));
+        versionItem.classList.add('selected');
+        document.getElementById('version-dropdown-text').innerText = versionItem.innerText;
+    }
+
     updateTabUI();
-    renderTab();
+    updateSEO();
+    fetchServerData(true);
 });
 
 function updateTabUI() {
@@ -207,23 +264,91 @@ function populateCountryDropdown(runs) {
     });
 }
 
+
 // Dropdown toggle listener
 document.addEventListener('DOMContentLoaded', () => {
-    const dropdownBtn = document.getElementById('country-dropdown-btn');
-    const dropdownMenu = document.getElementById('country-dropdown-menu');
-    const dropdownContainer = document.getElementById('country-filter-dropdown');
+    function setupDropdown(idPrefix, stateVarName, onChangeCallback) {
+        const btn = document.getElementById(`${idPrefix}-dropdown-btn`);
+        const menu = document.getElementById(`${idPrefix}-dropdown-menu`);
+        const container = document.getElementById(`${idPrefix}-filter-dropdown`);
+        const textEl = document.getElementById(`${idPrefix}-dropdown-text`);
 
-    dropdownBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dropdownMenu.classList.toggle('show');
-        dropdownContainer.classList.toggle('open');
+        if(!btn || !menu || !container) return;
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menu.classList.toggle('show');
+            container.classList.toggle('open');
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                menu.classList.remove('show');
+                container.classList.remove('open');
+            }
+        });
+
+        // Handle selection for static dropdowns (seed/version)
+        if (idPrefix === 'seed' || idPrefix === 'version') {
+            menu.querySelectorAll('.dropdown-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+
+                    // Update UI selection
+                    menu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
+                    item.classList.add('selected');
+                    textEl.innerText = item.innerText;
+
+                    // Close menu
+                    menu.classList.remove('show');
+                    container.classList.remove('open');
+
+                    // Call callback with new value
+                    onChangeCallback(item.getAttribute('data-value'));
+                });
+            });
+        }
+    }
+
+    const countryDropdownBtn = document.getElementById('country-dropdown-btn');
+    const countryDropdownMenu = document.getElementById('country-dropdown-menu');
+    const countryDropdownContainer = document.getElementById('country-filter-dropdown');
+
+    if (countryDropdownBtn && countryDropdownMenu && countryDropdownContainer) {
+        countryDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            countryDropdownMenu.classList.toggle('show');
+            countryDropdownContainer.classList.toggle('open');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!countryDropdownContainer.contains(e.target)) {
+                countryDropdownMenu.classList.remove('show');
+                countryDropdownContainer.classList.remove('open');
+            }
+        });
+    }
+
+
+    setupDropdown('seed', 'selectedSeedFilter', (val) => {
+        if (selectedSeedFilter !== val) {
+            selectedSeedFilter = val;
+
+            updateURL(activeTab, 1);
+
+            currentPage = 1;
+            fetchServerData(true); // Fetch new data from server with loading state
+        }
     });
 
-    // Close when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!dropdownContainer.contains(e.target)) {
-            dropdownMenu.classList.remove('show');
-            dropdownContainer.classList.remove('open');
+
+    setupDropdown('version', 'selectedVersionFilter', (val) => {
+        if (selectedVersionFilter !== val) {
+            selectedVersionFilter = val;
+            currentPage = 1;
+            updateURL(activeTab, 1);
+            fetchServerData(true); // Fetch new data from server with loading state
         }
     });
 });
@@ -425,15 +550,35 @@ window.changePage = function(page) {
     document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+
 window.onload = () => {
     // Read initial state from URL
     const urlParams = new URLSearchParams(window.location.search);
     activeTab = urlParams.get('tab') === 'queue' ? 'queue' : 'leaderboard';
     currentPage = parseInt(urlParams.get('page')) || 1;
 
+    if (urlParams.get('seedType')) selectedSeedFilter = urlParams.get('seedType');
+    if (urlParams.get('version')) selectedVersionFilter = urlParams.get('version');
+
+    // Sync UI with URL state
+    const seedItem = document.querySelector(`#seed-dropdown-menu .dropdown-item[data-value="${selectedSeedFilter}"]`);
+    if (seedItem) {
+        document.querySelectorAll('#seed-dropdown-menu .dropdown-item').forEach(i => i.classList.remove('selected'));
+        seedItem.classList.add('selected');
+        document.getElementById('seed-dropdown-text').innerText = seedItem.innerText;
+    }
+
+    const versionItem = document.querySelector(`#version-dropdown-menu .dropdown-item[data-value="${selectedVersionFilter}"]`);
+    if (versionItem) {
+        document.querySelectorAll('#version-dropdown-menu .dropdown-item').forEach(i => i.classList.remove('selected'));
+        versionItem.classList.add('selected');
+        document.getElementById('version-dropdown-text').innerText = versionItem.innerText;
+    }
+
     // Set initial history state to allow popstate to work correctly returning to the very first load
-    window.history.replaceState({ tab: activeTab, page: currentPage }, '', window.location.href);
+    window.history.replaceState({ tab: activeTab, page: currentPage, seed: selectedSeedFilter, version: selectedVersionFilter }, '', window.location.href);
 
     updateTabUI();
+    updateSEO();
     fetchServerData();
 };

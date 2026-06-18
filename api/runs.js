@@ -4,10 +4,11 @@ const GAME_ID = "j1npme6p";
 const CAT_ID = "mkeyl926"; 
 const EXACT_VER_VAR_ID = "jlzkwql2";
 
-// In-memory cache for the serverless function
-let cachedData = null;
-let lastFetchTime = 0;
+
+// In-memory cache for the serverless function. Map of paramKey -> {data, lastFetchTime}
+let cacheMap = {};
 const CACHE_DURATION_MS = 60 * 1000; // 60 seconds
+
 
 async function fetchFromSrc(endpoint, retries = 2) {
     for (let i = 0; i <= retries; i++) {
@@ -23,36 +24,68 @@ async function fetchFromSrc(endpoint, retries = 2) {
     }
 }
 
+
 export default async function handler(req, res) {
+    const seedTypeQuery = req.query.seedType || 'random';
+    const versionQuery = req.query.version || '4qye4731'; // default 1.16-1.19
+    const cacheKey = `${seedTypeQuery}-${versionQuery}`;
+
     // 1. Check Cache
     const now = Date.now();
-    if (cachedData && (now - lastFetchTime < CACHE_DURATION_MS)) {
+    if (cacheMap[cacheKey] && (now - cacheMap[cacheKey].lastFetchTime < CACHE_DURATION_MS)) {
         res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
-        return res.status(200).json(cachedData);
+        return res.status(200).json(cacheMap[cacheKey].data);
     }
 
+
     try {
+
         // 2. Resolve Variables dynamically
         const varData = await fetchFromSrc(`games/${GAME_ID}/variables`);
         let var_map = {}; 
-        let seedVarId, seedValId;
-        let verSubVarId, verSubValId;
+
+        let seedVarId = null;
+        let seedValId = null;
+        let verSubVarId = null;
+        let verSubValId = versionQuery; // We already have the value from the frontend
+
+        // Find the correct seed variable ID
+        let targetSeedLabel = seedTypeQuery === 'set' ? 'Set Seed' : 'Random Seed';
 
         for (let v of varData.data) {
             if (v.category && v.category !== CAT_ID) continue;
+
+            // Check if this variable is the Seed Type
+            if (v.name && v.name.includes("Seed Type") && v.category === CAT_ID) {
+               seedVarId = v.id;
+               for (let valId in v.values.values) {
+                   if (v.values.values[valId].label === targetSeedLabel) {
+                       seedValId = valId;
+                   }
+               }
+            }
+
+            // Check if this variable is the Version Range
+            if (v.name && v.name.includes("Version Range") && v.category === CAT_ID) {
+                verSubVarId = v.id;
+            }
+
             for (let valId in v.values.values) {
                 let label = v.values.values[valId].label;
                 var_map[valId] = label;
-                if (label === "Random Seed") { seedVarId = v.id; seedValId = valId; }
-                if (label === "1.16+") { verSubVarId = v.id; verSubValId = valId; }
             }
         }
+
+
 
         // 3. Fetch Leaderboard (Verified)
         let lbUrl = `leaderboards/${GAME_ID}/category/${CAT_ID}?top=1000&embed=players`;
         if (seedVarId && seedValId) lbUrl += `&var-${seedVarId}=${seedValId}`;
         if (verSubVarId && verSubValId) lbUrl += `&var-${verSubVarId}=${verSubValId}`;
         
+        console.log(`Fetching Leaderboard: ${lbUrl}`);
+
+
         // --- FASTER FETCHING START ---
         const queueOffsets = [0, 200, 400, 600, 800]; 
         const queuePromises = queueOffsets.map(offset => 
@@ -71,22 +104,27 @@ export default async function handler(req, res) {
         let officialRanks = {};
         let allCombined = [];
 
-        // Helper function to check 1.16 - 1.19
-        const isTargetVersion = (verLbl) => {
-            if (!verLbl) return false;
-            let m = verLbl.match(/^1\.(\d+)/);
-            return (m && parseInt(m[1]) >= 16 && parseInt(m[1]) <= 19);
-        };
+
+
 
         // Process Leaderboard
         let officialRankCounter = 1;
         if (lbData && lbData.data && lbData.data.runs) {
             for (let item of lbData.data.runs) {
                 let run = item.run;
-                let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
+                let verLbl = "Unknown";
+                if (run.values && run.values[EXACT_VER_VAR_ID]) {
+                    verLbl = var_map[run.values[EXACT_VER_VAR_ID]] || "Unknown";
+                }
 
-                // Only count the rank if it's a valid 1.16-1.19 Random Seed run, and time is >= 5 minutes (300 seconds)
-                if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId && run.times.primary_t >= 300) {
+
+
+                // Process all valid runs regardless of time
+                if (true) {
+
+
+
+
                     
                     // --- THE FIX: Assign exact rank manually based on valid runs ---
                     if (run.players) {
@@ -118,16 +156,35 @@ export default async function handler(req, res) {
             }
         }
 
+
         // Process Queue
         let allQueueRuns = [];
         for (let res of queueResults) {
             if (res && res.data) allQueueRuns.push(...res.data);
         }
 
-        for (let run of allQueueRuns) {
-            let verLbl = var_map[run.values[EXACT_VER_VAR_ID]];
 
-            if (isTargetVersion(verLbl) && run.values[seedVarId] === seedValId && run.times.primary_t >= 300) {
+        for (let run of allQueueRuns) {
+            let verLbl = "Unknown";
+            if (run.values && run.values[EXACT_VER_VAR_ID]) {
+                verLbl = var_map[run.values[EXACT_VER_VAR_ID]] || "Unknown";
+            }
+
+
+
+
+            // Note for queue runs we still need to filter because the API doesn't filter by vars on the /runs endpoint like it does on leaderboards
+            if (run.values && run.values[seedVarId] === seedValId && run.values[verSubVarId] === verSubValId) {
+
+                // For Random Seed, block any unverified (pending) runs under 3 minutes (180 seconds)
+                if (seedTypeQuery === 'random' && run.times.primary_t < 180) {
+                    continue;
+                }
+
+
+
+
+
                 let resolvedPlayers = (run.players && run.players.data) ? run.players.data : run.players;
                 let playerKey = resolvedPlayers.map(p => p.id || p.name).sort().join("|");
                 
@@ -160,17 +217,23 @@ export default async function handler(req, res) {
         let pureQueue = allCombined.filter(r => r.status === 'Pending');
         pureQueue.sort((a, b) => a.time - b.time); 
 
+
         // 6. Save to Cache and Send
-        cachedData = {
+        let finalData = {
             leaderboard: deduplicatedLeaderboard,
             queue: pureQueue,
             officialRanks: officialRanks, 
             updated: new Date().toISOString()
         };
-        lastFetchTime = Date.now();
+
+        cacheMap[cacheKey] = {
+            data: finalData,
+            lastFetchTime: Date.now()
+        };
 
         res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
-        return res.status(200).json(cachedData);
+        return res.status(200).json(finalData);
+
 
     } catch (error) {
         console.error("Backend Error:", error);
