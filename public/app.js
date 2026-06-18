@@ -13,7 +13,11 @@ let selectedVersionFilter = '4qye4731'; // '4qye4731' is 1.16-1.19
 
 // Initialize
 
-async function fetchServerData() {
+async function fetchServerData(isFilterChange = false) {
+    if (isFilterChange) {
+        document.getElementById('table-body').innerHTML = `<tr><td colspan="7" id="status-container"><div class="spinner"></div><br><br>Fetching Data...</td></tr>`;
+    }
+
     try {
         const url = `/api/runs?seedType=${selectedSeedFilter}&version=${selectedVersionFilter}`;
         const res = await fetch(url);
@@ -292,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentPage = 1;
-            fetchServerData(); // Fetch new data from server
+            fetchServerData(true); // Fetch new data from server with loading state
         }
     });
 
@@ -301,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedVersionFilter !== val) {
             selectedVersionFilter = val;
             currentPage = 1;
-            fetchServerData(); // Fetch new data from server
+            fetchServerData(true); // Fetch new data from server with loading state
         }
     });
 });
