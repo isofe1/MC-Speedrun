@@ -477,13 +477,13 @@ function renderTab() {
         : `<th>Date</th>`;
 
     document.getElementById('table-head').innerHTML = `
-        <th style="width: 50px; text-align: center;">${isQueue ? 'Row' : '#'}</th>
-        <th>Player(s)</th>
-        <th>Time</th>
-        ${isQueue ? '' : '<th>Status</th>'}
-        <th>Version</th>
-        ${dateHeader}
-        <th>Link</th>
+        <th class="col-rank">${isQueue ? 'Row' : '#'}</th>
+        <th class="col-player">Player(s)</th>
+        <th class="col-time">Time</th>
+        ${isQueue ? '' : '<th class="col-status">Status</th>'}
+        <th class="col-version">Version</th>
+        <th class="col-date">${dateHeader}</th>
+        <th class="col-link">Link</th>
     `;
 
     let tableHTML = "";
@@ -507,8 +507,8 @@ function renderTab() {
             let stat = run.status === 'Verified' ? `<span class="status-badge status-verified">Verified</span>` : `<span class="status-badge status-pending">Unverified</span>`;
 
             tableHTML += `<tr>
-                <td style="color:var(--text-muted); font-weight:700; text-align:center;">${rankDisplay}</td>
-                <td>${p_html}</td>
+                <td class="col-rank" style="color:var(--text-muted); font-weight:700;">${rankDisplay}</td>
+                <td class="col-player">${p_html}</td>
                 <td style="color:var(--accent); font-weight:600;">${str_time(run.time)}</td>
                 ${isQueue ? '' : `<td>${stat}</td>`}
                 <td><span style="background:#2a2a2a; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">${run.version}</span></td>
