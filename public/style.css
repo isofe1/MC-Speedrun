@@ -357,8 +357,21 @@ a:hover { text-decoration: underline; }
   .header-info { flex-direction: column; text-align: center; gap: 15px; padding: 15px; }
   .header-info div { text-align: center !important; }
 
-  table { min-width: 100%; }
-  th, td { padding: 6px 4px; font-size: 0.8rem; }
+  table { min-width: 100%; table-layout: auto; }
+  th, td { padding: 8px 4px; font-size: 0.85rem; }
+
+  /* Shrink columns to their content size */
+  .col-rank, .col-time, .col-status, .col-version, .col-date, .col-link {
+    width: 1%;
+    white-space: nowrap;
+  }
+
+  /* Left align the rank column to remove gap */
+  .col-rank { text-align: left !important; }
+
+  /* Allow player name to take up the remaining space */
+  .col-player { width: auto; }
+
   .status-badge { font-size: 0.65rem; padding: 2px 4px; }
   .player-wrapper { gap: 4px; }
   .player-flag { width: 14px; height: 10px; }
