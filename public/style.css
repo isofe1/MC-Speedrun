@@ -101,6 +101,7 @@ body {
   margin-bottom: 15px;
   padding: 0 5px;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .custom-dropdown {
@@ -356,8 +357,11 @@ a:hover { text-decoration: underline; }
   .header-info { flex-direction: column; text-align: center; gap: 15px; padding: 15px; }
   .header-info div { text-align: center !important; }
 
-  th, td { padding: 10px; font-size: 0.9rem; }
-  .status-badge { font-size: 0.7rem; padding: 3px 6px; }
+  table { min-width: 100%; }
+  th, td { padding: 6px 4px; font-size: 0.8rem; }
+  .status-badge { font-size: 0.65rem; padding: 2px 4px; }
+  .player-wrapper { gap: 4px; }
+  .player-flag { width: 14px; height: 10px; }
 
   .pagination-container { gap: 5px; }
   .page-btn { width: 34px; height: 34px; font-size: 0.85rem; }
